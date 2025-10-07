@@ -1,0 +1,95 @@
+{
+  "user": {
+    "name": "Munasar",
+    "balance": 200.979628
+  },
+  "positions": {},
+  "history": [
+    {
+      "id": "1759832088936-38e7cba634528",
+      "ts": 1759832088936,
+      "side": "sell",
+      "mint": "CvxP9bJxQL8vpEL85E2oph6KXHYsPcvZyNSFqRb7pump",
+      "name": "Retarded Stock XRS",
+      "symbol": "XRS",
+      "price": 0.00001317049208334929,
+      "qty": 5673173.828215,
+      "value": 74.718491,
+      "fee": 0.35,
+      "marketCap": 13170.487885544624
+    },
+    {
+      "id": "1759832064963-23c5541ae8b8b",
+      "ts": 1759832064963,
+      "side": "buy",
+      "mint": "CvxP9bJxQL8vpEL85E2oph6KXHYsPcvZyNSFqRb7pump",
+      "name": "Retarded Stock XRS",
+      "symbol": "XRS",
+      "price": 0.000022380770243372368,
+      "qty": 5673173.828215305,
+      "value": 126.97,
+      "fee": 0.35,
+      "marketCap": 22380.763109994117
+    },
+    {
+      "id": "1759831943678-c838c30ef24e3",
+      "ts": 1759831943678,
+      "side": "sell",
+      "mint": "BfhMeZ2TJPrFa1RkHD1RnLdpj2znWebfagXTHQcMpump",
+      "name": "Máo Zédinu",
+      "symbol": "ZEDINU",
+      "price": 0.00003069572973774475,
+      "qty": 4226620.071132,
+      "value": 129.739187,
+      "fee": 0.35,
+      "marketCap": 30695.72973774475
+    },
+    {
+      "id": "1759831934509-e689dc235865d",
+      "ts": 1759831934509,
+      "side": "buy",
+      "mint": "BfhMeZ2TJPrFa1RkHD1RnLdpj2znWebfagXTHQcMpump",
+      "name": "Máo Zédinu",
+      "symbol": "ZEDINU",
+      "price": 0.00002955079895945136,
+      "qty": 4226620.071131874,
+      "value": 124.9,
+      "fee": 0.35,
+      "marketCap": 29550.79895945136
+    },
+    {
+      "id": "1759831352327-a9c81fa8f5d59",
+      "ts": 1759831352328,
+      "side": "sell",
+      "mint": "4p4eudEvHA69ptdExcPXcNx8dMkcF7WK74uDr1JZpump",
+      "name": "RentDue",
+      "symbol": "$RENTD",
+      "price": 0.00007647792657363135,
+      "qty": 1640891.118712,
+      "value": 125.49195,
+      "fee": 0.35,
+      "marketCap": 76477.92657363134
+    },
+    {
+      "id": "1759831341657-5eed8adb3fd2",
+      "ts": 1759831341658,
+      "side": "buy",
+      "mint": "4p4eudEvHA69ptdExcPXcNx8dMkcF7WK74uDr1JZpump",
+      "name": "RentDue",
+      "symbol": "$RENTD",
+      "price": 0.00007617811966592877,
+      "qty": 1640891.1187119677,
+      "value": 125,
+      "fee": 0.35,
+      "marketCap": 76178.11966592877
+    }
+  ],
+  "deposits": [
+    {
+      "ts": 1759831281188,
+      "amount": 250
+    }
+  ],
+  "lastScannedMint": "CvxP9bJxQL8vpEL85E2oph6KXHYsPcvZyNSFqRb7pump",
+  "todos": {}
+}
