@@ -88,6 +88,12 @@ function formatCompact(n: number) {
   return n.toLocaleString()
 }
 
+function formatOneDecimalDown(n: number) {
+  if (!Number.isFinite(n)) return '—'
+  const v = Math.floor(n * 10) / 10
+  return v.toFixed(1)
+}
+
 type VerdictLabel = 'SAFE' | 'RISKY' | 'UNSAFE'
 interface HealthVerdict { label: VerdictLabel; reasons: string[] }
 
@@ -224,7 +230,9 @@ export function MemeScanner({ mint = DEFAULT_MINT, onAfterTrade }: { mint?: stri
   }, [vol24, marketCapFinal, marketCap])
 
   const estimatedGasSol = useMemo(() => {
-    return typeof tx24 === 'number' && isFinite(tx24) ? tx24 * 0.00002 : null
+    // Using 0.0015 SOL per transaction as per user guidance
+    const perTx = 0.0015
+    return typeof tx24 === 'number' && isFinite(tx24) ? tx24 * perTx : null
   }, [tx24])
 
   const priceCh24 = useMemo(() => {
@@ -264,10 +272,10 @@ export function MemeScanner({ mint = DEFAULT_MINT, onAfterTrade }: { mint?: stri
 
   return (
     <Card variant="glass">
-      <div style={{ width: '100%', maxWidth: 820, margin: '0 auto' }}>
+      <div style={{ width: '100%', maxWidth: '95%', margin: '0 auto' }}>
         {/* Search row */}
         <div style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${colors.surfaceBorder}`, borderRadius: 14, padding: spacing.sm, marginBottom: spacing.md }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: spacing.sm }}>
+          <div className="searchRow" style={{ display: 'grid', gap: spacing.sm }}>
             <input
               value={inputMint}
               onChange={e => setInputMint(e.target.value)}
@@ -347,9 +355,7 @@ export function MemeScanner({ mint = DEFAULT_MINT, onAfterTrade }: { mint?: stri
                   )}
                 </div>
               </div>
-              <div>
-                <button onClick={() => setSearchedMint(searchedMint)} className="icon-btn">⟳</button>
-              </div>
+              {/* Refresh icon removed per request */}
             </div>
 
             {/* Metrics */}
@@ -409,8 +415,8 @@ export function MemeScanner({ mint = DEFAULT_MINT, onAfterTrade }: { mint?: stri
                   <div className="kpi-value">{vol24 != null ? `$${formatCompact(vol24)}` : '—'}</div>
                 </div>
                 <div className="card" style={{ background: 'transparent', border: `1px dashed ${colors.surfaceBorder}` }}>
-                  <div className="kpi-title">Tx 24h / Gas est.</div>
-                  <div className="kpi-value">{tx24 != null ? `${Math.round(tx24)} / ${(estimatedGasSol ?? 0).toFixed(4)} SOL` : '—'}</div>
+                  <div className="kpi-title">Est. Gas (0.0015 SOL/tx)</div>
+                  <div className="kpi-value">{estimatedGasSol != null ? `${formatOneDecimalDown(estimatedGasSol)} SOL` : '—'}</div>
                 </div>
               </div>
 

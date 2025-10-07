@@ -124,6 +124,13 @@ button:hover { filter: brightness(1.05); box-shadow: 0 8px 26px rgba(124,58,237,
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
 /* Responsive */
+/* Search row responsive: input + buttons stay inside card */
+.searchRow { grid-template-columns: 1fr auto auto; align-items: center; }
+@media (max-width: 640px) {
+  .searchRow { grid-template-columns: 1fr; }
+  .searchRow button { width: 100%; }
+}
+
 @media (max-width: 1024px) {
   .cards { grid-template-columns: 1fr; }
   .grid.two { grid-template-columns: 1fr; }

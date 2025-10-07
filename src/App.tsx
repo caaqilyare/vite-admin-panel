@@ -27,6 +27,8 @@ import EditIcon from '@mui/icons-material/Edit'
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
+import RestartAltIcon from '@mui/icons-material/RestartAlt'
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
 
 type HistoryItem = {
   id: string
@@ -449,9 +451,12 @@ function App() {
         <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
         <Chip label={state?.user?.name || '—'} onClick={() => setOpenProfile(true)} sx={{ cursor: 'pointer' }} />
           <Stack direction="row" spacing={2} alignItems="center">
-            <Button variant="outlined" onClick={refresh}>Refresh</Button>
-            <Button variant="outlined" color="error" onClick={() => setOpenResetConfirm(true)}>Reset</Button>
-            <Button variant="contained" color="secondary" onClick={handleExportPDF}>Export PDF</Button>
+            <IconButton aria-label="Reset" color="error" onClick={() => setOpenResetConfirm(true)}>
+              <RestartAltIcon />
+            </IconButton>
+            <IconButton aria-label="Export PDF" color="secondary" onClick={handleExportPDF}>
+              <PictureAsPdfIcon />
+            </IconButton>
             
           </Stack>
         </Toolbar>

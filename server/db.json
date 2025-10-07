@@ -1,66 +1,40 @@
 {
   "user": {
     "name": "Munasar",
-    "balance": 542.877643
+    "balance": 266.195645
   },
   "positions": {},
   "history": [
     {
-      "id": "1759839532236-e77a7e0dd4ea2",
-      "ts": 1759839532237,
+      "id": "1759846082567-efe324f6e090a",
+      "ts": 1759846082567,
       "side": "sell",
-      "mint": "7nDfEsQyxSFapJpjGNqEf6qni88WNhyuXbaM3crCpump",
-      "name": "Roadmen Parliament",
-      "symbol": "RP",
-      "price": 0.00004996332706936711,
-      "qty": 8163350.525002,
-      "value": 407.868152,
+      "mint": "86nBoRo7DdTDn2gZ7B6Vc9A1bQFzRssuCF9v18qqpump",
+      "name": "Deadlana",
+      "symbol": "Deadlana",
+      "price": 0.000023807867248748883,
+      "qty": 5960031.755675,
+      "value": 141.895645,
       "fee": 0.35,
-      "marketCap": 49963.30414059291
+      "marketCap": 23807.866951345743
     },
     {
-      "id": "1759839316217-c988ed50eb3b6",
-      "ts": 1759839316217,
+      "id": "1759845968998-3e484378d744d",
+      "ts": 1759845968998,
       "side": "buy",
-      "mint": "7nDfEsQyxSFapJpjGNqEf6qni88WNhyuXbaM3crCpump",
-      "name": "Roadmen Parliament",
-      "symbol": "RP",
-      "price": 0.000016624301453718723,
-      "qty": 8163350.525001625,
-      "value": 135.71,
-      "fee": 0.35,
-      "marketCap": 16624.293824626016
-    },
-    {
-      "id": "1759832675547-281896b235664",
-      "ts": 1759832675547,
-      "side": "sell",
-      "mint": "49z8kwWCx5LmoFUjTQbFUpAx5MFaocyUjWg4A3Egpump",
-      "name": "The ⛾ Cult",
-      "symbol": "⛾",
-      "price": 0.00003102336631964067,
-      "qty": 4742215.578386,
-      "value": 147.119491,
-      "fee": 0.35,
-      "marketCap": 31022.707527289356
-    },
-    {
-      "id": "1759832651302-49e5d6a58e89",
-      "ts": 1759832651302,
-      "side": "buy",
-      "mint": "49z8kwWCx5LmoFUjTQbFUpAx5MFaocyUjWg4A3Egpump",
-      "name": "The ⛾ Cult",
-      "symbol": "⛾",
-      "price": 0.000026358987256868763,
-      "qty": 4742215.578385958,
+      "mint": "86nBoRo7DdTDn2gZ7B6Vc9A1bQFzRssuCF9v18qqpump",
+      "name": "Deadlana",
+      "symbol": "Deadlana",
+      "price": 0.000020973042615246405,
+      "qty": 5960031.755675304,
       "value": 125,
       "fee": 0.35,
-      "marketCap": 26358.42751428589
+      "marketCap": 20973.04235325533
     }
   ],
   "deposits": [
     {
-      "ts": 1759832552129,
+      "ts": 1759845963421,
       "amount": 250
     }
   ],
