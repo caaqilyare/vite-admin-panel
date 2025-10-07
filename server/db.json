@@ -1,10 +1,36 @@
 {
   "user": {
     "name": "Munasar",
-    "balance": 271.419491
+    "balance": 542.877643
   },
   "positions": {},
   "history": [
+    {
+      "id": "1759839532236-e77a7e0dd4ea2",
+      "ts": 1759839532237,
+      "side": "sell",
+      "mint": "7nDfEsQyxSFapJpjGNqEf6qni88WNhyuXbaM3crCpump",
+      "name": "Roadmen Parliament",
+      "symbol": "RP",
+      "price": 0.00004996332706936711,
+      "qty": 8163350.525002,
+      "value": 407.868152,
+      "fee": 0.35,
+      "marketCap": 49963.30414059291
+    },
+    {
+      "id": "1759839316217-c988ed50eb3b6",
+      "ts": 1759839316217,
+      "side": "buy",
+      "mint": "7nDfEsQyxSFapJpjGNqEf6qni88WNhyuXbaM3crCpump",
+      "name": "Roadmen Parliament",
+      "symbol": "RP",
+      "price": 0.000016624301453718723,
+      "qty": 8163350.525001625,
+      "value": 135.71,
+      "fee": 0.35,
+      "marketCap": 16624.293824626016
+    },
     {
       "id": "1759832675547-281896b235664",
       "ts": 1759832675547,
@@ -38,6 +64,6 @@
       "amount": 250
     }
   ],
-  "lastScannedMint": "49z8kwWCx5LmoFUjTQbFUpAx5MFaocyUjWg4A3Egpump",
+  "lastScannedMint": "6yYwHHZfDcLsCyDunhb1q7JgQAoyz3ZwvWdR8zfepump",
   "todos": {}
 }

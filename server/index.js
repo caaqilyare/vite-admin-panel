@@ -264,6 +264,81 @@ app.get('/api/scan/price/:mint', async (req, res) => {
 
 // Removed /api/scan/solusd per request
 
+// Dexscreener token info proxy with 1-minute cache and a simple risk assessment
+const dexCache = new Map(); // key: chainId:addr -> { ts, data }
+const DEX_TTL_MS = 60_000;
+
+async function fetchDexToken(chainId, tokenAddresses) {
+  const url = `https://api.dexscreener.com/tokens/v1/${chainId}/${tokenAddresses}`;
+  const resp = await fetch(url, { headers: { 'Accept': 'application/json' } });
+  if (!resp.ok) throw new Error(`Dex ${resp.status}`);
+  return await resp.json();
+}
+
+function assessDexRisk(entry) {
+  if (!entry) return { label: 'unknown', score: 0, reasons: ['no-data'] };
+  const tx5 = entry?.txns?.m5 || { buys: 0, sells: 0 };
+  const tx1 = entry?.txns?.h1 || { buys: 0, sells: 0 };
+  const vol24 = Number(entry?.volume?.h24 || 0);
+  const priceCh1 = Number(entry?.priceChange?.h1 || 0);
+  const mcap = Number(entry?.marketCap || entry?.fdv || 0);
+  const ageMs = Date.now() - Number(entry?.pairCreatedAt || Date.now());
+
+  let score = 50;
+  const reasons = [];
+  // Volume boosts confidence
+  if (vol24 > 100_000) { score += 15; reasons.push('vol24>100k'); }
+  else if (vol24 > 25_000) { score += 8; reasons.push('vol24>25k'); }
+  else if (vol24 < 2_000) { score -= 10; reasons.push('low-vol'); }
+
+  // Transaction balance
+  const buys = Number(tx1.buys || 0);
+  const sells = Number(tx1.sells || 0);
+  if (buys + sells > 0) {
+    const ratio = buys / Math.max(1, sells);
+    if (ratio > 1.5) { score += 6; reasons.push('buy>sell'); }
+    if (ratio < 0.6) { score -= 8; reasons.push('sell>buy'); }
+  }
+
+  // Price change extremes (pump/dump risk)
+  if (priceCh1 > 400) { score -= 10; reasons.push('extreme-pump'); }
+  if (priceCh1 < -60) { score -= 10; reasons.push('dumping'); }
+
+  // Market cap sanity
+  if (mcap > 1_000_000) { score += 6; reasons.push('mcap>1m'); }
+  if (mcap < 10_000) { score -= 6; reasons.push('microcap'); }
+
+  // Age: very fresh pairs are riskier
+  if (ageMs < 3 * 60 * 60 * 1000) { score -= 8; reasons.push('new-pair'); }
+
+  score = Math.max(0, Math.min(100, score));
+  let label = 'caution';
+  if (score >= 70) label = 'safe';
+  else if (score <= 40) label = 'danger';
+  return { label, score, reasons };
+}
+
+app.get('/api/scan/dex/:mint', async (req, res) => {
+  try {
+    const { mint } = req.params;
+    if (!isValidMint(mint)) return res.status(400).json({ error: 'Invalid mint' });
+    const key = `solana:${mint}`;
+    const now = Date.now();
+    const cached = dexCache.get(key);
+    if (cached && (now - cached.ts) < DEX_TTL_MS) {
+      return res.json(cached.data);
+    }
+    const json = await fetchDexToken('solana', mint);
+    const entry = Array.isArray(json) ? json[0] : (json?.pairs?.[0] || json);
+    const risk = assessDexRisk(entry);
+    const data = { mint, dex: entry, risk };
+    dexCache.set(key, { ts: now, data });
+    res.json(data);
+  } catch (e) {
+    res.json({ mint: req.params?.mint, error: String(e?.message || e) });
+  }
+});
+
 // Combined summary: price, solUsd, priceUsd, supply, marketCap
 app.get('/api/scan/summary/:mint', async (req, res) => {
   try {

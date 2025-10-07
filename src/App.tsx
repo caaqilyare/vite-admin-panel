@@ -139,12 +139,13 @@ function App() {
         return acc
       }, {})
 
-      // Totals by mint for Buy Amount and Sell Amount
-      const totalsByMint = hist.reduce<Record<string, { buyCost: number; sellProceeds: number }>>((acc, h) => {
-        const cur = acc[h.mint] || { buyCost: 0, sellProceeds: 0 }
+      // Totals by mint for Buy/Sell Amounts and Quantities and last action
+      const totalsByMint = hist.reduce<Record<string, { buyCost: number; sellProceeds: number; buyQty: number; sellQty: number; lastTs: number; lastSide: 'buy' | 'sell' }>>((acc, h) => {
+        const cur = acc[h.mint] || { buyCost: 0, sellProceeds: 0, buyQty: 0, sellQty: 0, lastTs: 0, lastSide: h.side }
         const val = Number(h.value) || 0
-        if (h.side === 'buy') cur.buyCost += val
-        else cur.sellProceeds += val
+        const q = Number(h.qty) || 0
+        if (h.side === 'buy') { cur.buyCost += val; cur.buyQty += q } else { cur.sellProceeds += val; cur.sellQty += q }
+        if (h.ts >= cur.lastTs) { cur.lastTs = h.ts; cur.lastSide = h.side }
         acc[h.mint] = cur
         return acc
       }, {})
@@ -255,6 +256,9 @@ function App() {
               <th style="text-align:right;border-bottom:1px solid #e5e7eb;padding:6px;">Last Price</th>
               <th style="text-align:right;border-bottom:1px solid #e5e7eb;padding:6px;">Buy Amount</th>
               <th style="text-align:right;border-bottom:1px solid #e5e7eb;padding:6px;">Sell Amount</th>
+              <th style="text-align:right;border-bottom:1px solid #e5e7eb;padding:6px;">Qty Bought</th>
+              <th style="text-align:right;border-bottom:1px solid #e5e7eb;padding:6px;">Qty Sold</th>
+              <th style="text-align:left;border-bottom:1px solid #e5e7eb;padding:6px;">Status</th>
               <th style="text-align:right;border-bottom:1px solid #e5e7eb;padding:6px;">PnL %</th>
             </tr>
           </thead>
@@ -263,7 +267,8 @@ function App() {
               const last = lastPriceByMint[m]?.price
               const pnlPct = (typeof last === 'number' && p.avgPrice > 0) ? ((last - p.avgPrice) / p.avgPrice) * 100 : null
               const title = p.name || p.symbol || shortAddress(m)
-              const totals = totalsByMint[m] || { buyCost: 0, sellProceeds: 0 }
+              const totals = totalsByMint[m] || { buyCost: 0, sellProceeds: 0, buyQty: 0, sellQty: 0, lastTs: 0, lastSide: 'buy' as 'buy' | 'sell' }
+              const status = pnlPct == null ? '—' : (pnlPct >= 0 ? 'Winning' : 'Losing')
               return `
                 <tr>
                   <td style=\"padding:6px;border-bottom:1px solid #f3f4f6;\">${title}</td>
@@ -273,6 +278,9 @@ function App() {
                   <td style=\"padding:6px;border-bottom:1px solid #f3f4f6;text-align:right;\">${last == null ? '—' : '$' + fmt(last, 6, 6)}</td>
                   <td style=\"padding:6px;border-bottom:1px solid #f3f4f6;text-align:right;\">$${fmt(totals.buyCost, 6, 2)}</td>
                   <td style=\"padding:6px;border-bottom:1px solid #f3f4f6;text-align:right;\">$${fmt(totals.sellProceeds, 6, 2)}</td>
+                  <td style=\"padding:6px;border-bottom:1px solid #f3f4f6;text-align:right;\">${fmt(totals.buyQty)}</td>
+                  <td style=\"padding:6px;border-bottom:1px solid #f3f4f6;text-align:right;\">${fmt(totals.sellQty)}</td>
+                  <td style=\"padding:6px;border-bottom:1px solid #f3f4f6;\">${status}</td>
                   <td style=\"padding:6px;border-bottom:1px solid #f3f4f6;text-align:right;\">${pct(pnlPct)}</td>
                 </tr>`
             }).join('')}
