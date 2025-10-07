@@ -21,9 +21,12 @@ import {
   Divider,
   Snackbar,
   Alert,
+  IconButton,
 } from '@mui/material'
 import EditIcon from '@mui/icons-material/Edit'
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 
 type HistoryItem = {
   id: string
@@ -74,6 +77,7 @@ function App() {
   const [openResetConfirm, setOpenResetConfirm] = useState(false)
   const [resetNoticeOpen, setResetNoticeOpen] = useState(false)
   const [copiedActivityId, setCopiedActivityId] = useState<string | null>(null)
+  const [activityDense, setActivityDense] = useState(false)
   const contentRef = useRef<HTMLDivElement | null>(null)
   const isSmall = useMediaQuery('(max-width:600px)')
 
@@ -387,13 +391,21 @@ function App() {
       buys: HistoryItem[]
       sells: HistoryItem[]
       lastTs: number
+      totalBuyQty: number
+      totalSellQty: number
+      lastAction?: 'buy' | 'sell'
     }>()
     for (const h of hist) {
-      const g = map.get(h.mint) || { mint: h.mint, name: h.name, symbol: h.symbol, buys: [], sells: [], lastTs: h.ts }
+      const g = map.get(h.mint) || { mint: h.mint, name: h.name, symbol: h.symbol, buys: [], sells: [], lastTs: h.ts, totalBuyQty: 0, totalSellQty: 0 as number, lastAction: h.side }
       if (h.side === 'buy') g.buys.push(h); else g.sells.push(h)
       if (h.ts > g.lastTs) g.lastTs = h.ts
       if (!g.name && h.name) g.name = h.name
       if (!g.symbol && h.symbol) g.symbol = h.symbol
+      if (typeof h.qty === 'number') {
+        if (h.side === 'buy') g.totalBuyQty += Number(h.qty) || 0
+        else g.totalSellQty += Number(h.qty) || 0
+      }
+      g.lastAction = h.ts >= g.lastTs ? h.side : g.lastAction
       map.set(h.mint, g)
     }
     const items = Array.from(map.values()).map(g => {
@@ -508,7 +520,10 @@ function App() {
 
           <Grid item xs={12}>
             <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" gutterBottom>Recent Activity</Typography>
+              <Stack direction="row" alignItems="center" justifyContent="space-between">
+                <Typography variant="h6" gutterBottom>Recent Activity</Typography>
+                <Button size="small" variant="outlined" onClick={() => setActivityDense(v => !v)}>{activityDense ? 'Comfy' : 'Compact'}</Button>
+              </Stack>
               {(groupedActivity.length) === 0 ? (
                 <Typography variant="body2" color="text.secondary">No activity yet</Typography>
               ) : (
@@ -533,7 +548,7 @@ function App() {
                         <Paper
                           variant="outlined"
                           sx={{
-                            p: 1.5,
+                            p: activityDense ? 1 : 1.5,
                             borderRadius: 2,
                             background: cardBg,
                             border: cardBorder,
@@ -541,25 +556,28 @@ function App() {
                             '&:hover': { boxShadow: 6, transform: 'translateY(-1px)' },
                           }}
                         >
-                          <Stack spacing={1}>
+                          <Stack spacing={activityDense ? 0.75 : 1}>
                             <Stack direction="row" justifyContent="space-between" alignItems="center">
                               <Chip size="small" label={g.symbol || 'TOKEN'} sx={{ fontWeight: 700 }} />
                               <Stack direction="row" spacing={1} alignItems="center">
                                 <Typography variant="caption" color="text.secondary">⏱ {new Date(g.lastTs).toLocaleString()}</Typography>
-                                <Button
-                                  size="small"
-                                  variant={copied ? 'contained' : 'text'}
-                                  color={copied ? 'success' : 'primary'}
-                                  disabled={copied}
-                                  onClick={async () => { try { await navigator.clipboard.writeText(g.mint); setCopiedActivityId(g.mint); setTimeout(() => setCopiedActivityId(null), 1200) } catch {} }}
-                                >
-                                  {copied ? 'Copied' : 'Copy'}
-                                </Button>
+                                <IconButton size="small" color={copied ? 'success' : 'default'} aria-label="Copy address" onClick={async () => { try { await navigator.clipboard.writeText(g.mint); setCopiedActivityId(g.mint); setTimeout(() => setCopiedActivityId(null), 1200) } catch {} }}>
+                                  <ContentCopyIcon fontSize="inherit" />
+                                </IconButton>
+                                {(g.lastBuy || g.lastSell) && (
+                                  <IconButton size="small" aria-label="Open details" onClick={() => { const item = g.lastSell || g.lastBuy!; setSelectedActivity(item); setActivityOpen(true) }}>
+                                    <OpenInNewIcon fontSize="inherit" />
+                                  </IconButton>
+                                )}
                               </Stack>
                             </Stack>
                             <Stack direction="row" justifyContent="space-between" alignItems="center">
                               <Typography variant="subtitle2" fontWeight={900} title={titleFull} sx={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical' }}>{title}</Typography>
                               <Chip size="small" label={`${g.pnlPct == null ? '—' : (g.pnlPct >= 0 ? '▲ +' : '▼ -') + Math.abs(g.pnlPct).toFixed(2) + '%'}`} color={isWin ? 'success' : 'error'} variant="filled" />
+                            </Stack>
+                            <Stack direction="row" spacing={1} alignItems="center" sx={{ opacity: 0.8 }}>
+                              <Chip size="small" label={isWin ? 'Winning' : 'Losing'} color={isWin ? 'success' : 'error'} variant="outlined" />
+                              <Chip size="small" label={`Last: ${(g.lastAction || 'buy').toUpperCase()}`} variant="outlined" />
                             </Stack>
                             <Typography variant="caption" className="mono" color="text.secondary" title={g.mint} sx={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflowWrap: 'anywhere' }}>{mintShown}</Typography>
 
@@ -570,6 +588,7 @@ function App() {
                               <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Time</Typography><Typography variant="caption">{buyTime || '—'}</Typography></Stack>
                               <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Price</Typography><Typography variant="caption">{g.buyWeightedPrice == null ? '—' : `$${fmt(g.buyWeightedPrice, 6, 6)}`}</Typography></Stack>
                               <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Amount</Typography><Typography variant="caption">${fmt(g.buyCost, 6, 2)}</Typography></Stack>
+                              <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Qty Bought</Typography><Typography variant="caption">{fmt(g.totalBuyQty)}</Typography></Stack>
                               <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Market Cap</Typography><Typography variant="caption">{buyCap == null ? '—' : `$${Number(buyCap).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}</Typography></Stack>
                             </Stack>
 
@@ -580,6 +599,7 @@ function App() {
                               <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Time</Typography><Typography variant="caption">{sellTime || '—'}</Typography></Stack>
                               <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Price</Typography><Typography variant="caption">{g.sellWeightedPrice == null ? '—' : `$${fmt(g.sellWeightedPrice, 6, 6)}`}</Typography></Stack>
                               <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Amount</Typography><Typography variant="caption">${fmt(g.sellProceeds, 6, 2)}</Typography></Stack>
+                              <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Qty Sold</Typography><Typography variant="caption">{fmt(g.totalSellQty)}</Typography></Stack>
                               <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Market Cap</Typography><Typography variant="caption">{sellCap == null ? '—' : `$${Number(sellCap).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}</Typography></Stack>
                             </Stack>
 
