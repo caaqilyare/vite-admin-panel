@@ -156,7 +156,7 @@ export function MemeScanner({ mint = DEFAULT_MINT, onAfterTrade }: { mint?: stri
     { refreshInterval: 300, dedupingInterval: 0, revalidateIfStale: true, keepPreviousData: true }
   )
 
-  const { data: dexResp, error: dexError } = useSWR(
+  const { data: dexResp } = useSWR(
     dexKey,
     fetchDex,
     { refreshInterval: 60_000, revalidateOnFocus: true, keepPreviousData: true }
