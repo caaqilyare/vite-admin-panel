@@ -165,7 +165,7 @@ export function MemeScanner({ mint = DEFAULT_MINT, onAfterTrade }: { mint?: stri
   const { data: dexResp } = useSWR(
     dexKey,
     fetchDex,
-    { refreshInterval: 60_000, revalidateOnFocus: true, keepPreviousData: true }
+    { refreshInterval: 10_000, revalidateOnFocus: true, keepPreviousData: true }
   )
 
   // Persist last scanned mint
@@ -415,8 +415,22 @@ export function MemeScanner({ mint = DEFAULT_MINT, onAfterTrade }: { mint?: stri
                   <div className="kpi-value">{vol24 != null ? `$${formatCompact(vol24)}` : '—'}</div>
                 </div>
                 <div className="card" style={{ background: 'transparent', border: `1px dashed ${colors.surfaceBorder}` }}>
-                  <div className="kpi-title">Est. Gas (0.0015 SOL/tx)</div>
-                  <div className="kpi-value">{estimatedGasSol != null ? `${formatOneDecimalDown(estimatedGasSol)} SOL` : '—'}</div>
+                  <div className="kpi-title">Global Fees Paid</div>
+                  <div className="kpi-value" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <img
+                      src="https://axiom.trade/images/sol-fill.svg"
+                      alt="SOL"
+                      style={{ width: 16, height: 16, filter: 'drop-shadow(0 0 6px rgba(124,58,237,0.45))' }}
+                    />
+                    {estimatedGasSol != null ? (
+                      <>
+                        <span title={`${(estimatedGasSol ?? 0).toFixed(2)} SOL`} style={{ fontWeight: 900 }}>
+                          {formatOneDecimalDown(estimatedGasSol)}
+                        </span>
+                        <span style={{ opacity: 0.8, fontSize: type.label }}>SOL</span>
+                      </>
+                    ) : '—'}
+                  </div>
                 </div>
               </div>
 

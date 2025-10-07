@@ -266,7 +266,7 @@ app.get('/api/scan/price/:mint', async (req, res) => {
 
 // Dexscreener token info proxy with 1-minute cache and a simple risk assessment
 const dexCache = new Map(); // key: chainId:addr -> { ts, data }
-const DEX_TTL_MS = 60_000;
+const DEX_TTL_MS = 10_000;
 
 async function fetchDexToken(chainId, tokenAddresses) {
   const url = `https://api.dexscreener.com/tokens/v1/${chainId}/${tokenAddresses}`;

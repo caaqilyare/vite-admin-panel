@@ -1,43 +1,11 @@
 {
   "user": {
     "name": "Munasar",
-    "balance": 266.195645
+    "balance": 0
   },
   "positions": {},
-  "history": [
-    {
-      "id": "1759846082567-efe324f6e090a",
-      "ts": 1759846082567,
-      "side": "sell",
-      "mint": "86nBoRo7DdTDn2gZ7B6Vc9A1bQFzRssuCF9v18qqpump",
-      "name": "Deadlana",
-      "symbol": "Deadlana",
-      "price": 0.000023807867248748883,
-      "qty": 5960031.755675,
-      "value": 141.895645,
-      "fee": 0.35,
-      "marketCap": 23807.866951345743
-    },
-    {
-      "id": "1759845968998-3e484378d744d",
-      "ts": 1759845968998,
-      "side": "buy",
-      "mint": "86nBoRo7DdTDn2gZ7B6Vc9A1bQFzRssuCF9v18qqpump",
-      "name": "Deadlana",
-      "symbol": "Deadlana",
-      "price": 0.000020973042615246405,
-      "qty": 5960031.755675304,
-      "value": 125,
-      "fee": 0.35,
-      "marketCap": 20973.04235325533
-    }
-  ],
-  "deposits": [
-    {
-      "ts": 1759845963421,
-      "amount": 250
-    }
-  ],
-  "lastScannedMint": "6yYwHHZfDcLsCyDunhb1q7JgQAoyz3ZwvWdR8zfepump",
+  "history": [],
+  "deposits": [],
+  "lastScannedMint": "",
   "todos": {}
 }
