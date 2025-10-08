@@ -52,7 +52,7 @@ async function fetchRugReport([, m]: [string, string]) {
   return report
 }
 
-async function fetchPrice([, m]: [string, string]): Promise<{ price: number | null }> {
+async function fetchPrice([, m]: [string, string]): Promise<{ price: number | null; isFallback?: boolean; error?: string }> {
   const url = `/api/scan/price/${m}`
   const res = await fetch(url, { headers: { Accept: 'application/json' } })
   if (!res.ok) throw new Error(`Price ${res.status}`)
@@ -61,7 +61,11 @@ async function fetchPrice([, m]: [string, string]): Promise<{ price: number | nu
     const n = Number(t)
     return Number.isFinite(n) ? { price: n } : { price: null }
   })
-  return { price: typeof j?.price === 'number' ? j.price : null }
+  return {
+    price: typeof j?.price === 'number' ? j.price : null,
+    isFallback: j?.isFallback === true,
+    error: typeof j?.error === 'string' ? j.error : undefined,
+  }
 }
 
 async function fetchDex([, m]: [string, string]): Promise<DexResponse> {
@@ -103,11 +107,13 @@ function computeHealthVerdict(params: {
   tx24: number | null
   priceCh24: number | null
   dexLabel?: 'safe' | 'caution' | 'danger' | 'unknown'
+  ageMin?: number | null
+  marketCap?: number | null
 }): HealthVerdict {
   let score = 50
   const reasons: string[] = []
 
-  const { volToMc, lpLockedPct, tx24, priceCh24, dexLabel } = params
+  const { volToMc, lpLockedPct, tx24, priceCh24, dexLabel, ageMin, marketCap } = params
 
   if (typeof volToMc === 'number' && isFinite(volToMc)) {
     if (volToMc >= 1) { score += 20; reasons.push('volume/mc strong') }
@@ -132,6 +138,12 @@ function computeHealthVerdict(params: {
 
   if (dexLabel === 'safe') { score += 5; reasons.push('dex risk: safe') }
   if (dexLabel === 'danger') { score -= 10; reasons.push('dex risk: danger') }
+
+  // User rule: if token age > 50 minutes and market cap < $20k -> add risk
+  if (typeof ageMin === 'number' && ageMin > 50 && typeof marketCap === 'number' && isFinite(marketCap) && marketCap < 20_000) {
+    score -= 10
+    reasons.push('age>50m & mc<20k')
+  }
 
   let label: VerdictLabel = 'RISKY'
   if (score >= 70) label = 'SAFE'
@@ -189,21 +201,17 @@ export function MemeScanner({ mint = DEFAULT_MINT, onAfterTrade }: { mint?: stri
   }, [report])
 
   const priceUsd = useMemo(() => {
+    if (priceResp?.isFallback) return null
     const p = priceResp?.price
     return typeof p === 'number' ? p : null
-  }, [priceResp?.price])
+  }, [priceResp?.price, priceResp?.isFallback])
 
   const marketCap = useMemo(() => {
     if (priceUsd == null || supply == null) return null
     return priceUsd * supply
   }, [priceUsd, supply])
 
-  // Fallback to dex market cap if computed marketCap is null
-  const marketCapFinal = useMemo(() => {
-    if (marketCap != null) return marketCap
-    const m = dexResp?.dex?.marketCap ?? dexResp?.dex?.fdv
-    return typeof m === 'number' ? m : null
-  }, [marketCap, dexResp])
+  // Per request: do not fall back to Dex; market cap comes from Fluxbeam price * RugCheck supply only
 
   // Derived metrics for Health Check
   const tx24 = useMemo(() => {
@@ -223,15 +231,23 @@ export function MemeScanner({ mint = DEFAULT_MINT, onAfterTrade }: { mint?: stri
     return typeof v === 'number' && isFinite(v) ? v : null
   }, [dexResp?.dex?.volume?.h24])
 
+  // Age in minutes from Dex pair creation time
+  const ageMin = useMemo(() => {
+    const createdAt = Number(dexResp?.dex?.pairCreatedAt)
+    if (!Number.isFinite(createdAt) || createdAt <= 0) return null
+    const ms = Date.now() - createdAt
+    return ms > 0 ? Math.floor(ms / 60000) : null
+  }, [dexResp?.dex?.pairCreatedAt])
+
   const volToMc = useMemo(() => {
-    const mc = (marketCapFinal ?? marketCap)
+    const mc = marketCap
     if (vol24 != null && mc != null && mc > 0) return vol24 / mc
     return null
-  }, [vol24, marketCapFinal, marketCap])
+  }, [vol24, marketCap])
 
   const estimatedGasSol = useMemo(() => {
     // Using 0.0015 SOL per transaction as per user guidance
-    const perTx = 0.0015
+    const perTx = 0.002
     return typeof tx24 === 'number' && isFinite(tx24) ? tx24 * perTx : null
   }, [tx24])
 
@@ -247,12 +263,44 @@ export function MemeScanner({ mint = DEFAULT_MINT, onAfterTrade }: { mint?: stri
       tx24,
       priceCh24,
       dexLabel: dexResp?.risk?.label,
+      ageMin,
+      marketCap,
     })
-  }, [volToMc, lpLockedPct, tx24, priceCh24, dexResp?.risk?.label])
+  }, [volToMc, lpLockedPct, tx24, priceCh24, dexResp?.risk?.label, ageMin, marketCap])
 
   const [priceUsdStable, setPriceUsdStable] = useState<number | null>(null)
   const [supplyStable, setSupplyStable] = useState<number | null>(null)
   const [marketCapStable, setMarketCapStable] = useState<number | null>(null)
+
+  // Recommendation based on health, age, market cap, LP, tx activity
+  const recommendation = useMemo(() => {
+    const tips: string[] = []
+    const label = health?.label
+    const mc = marketCap
+    const locked = typeof lpLockedPct === 'number' ? lpLockedPct : null
+    const tx = typeof tx24 === 'number' ? tx24 : null
+    const oldAndSmall = (typeof ageMin === 'number' && ageMin > 50) && (typeof mc === 'number' && mc < 20_000)
+
+    if (label === 'SAFE') {
+      tips.push('Gradual entry (DCA) with stops')
+      if (locked != null && locked >= 75) tips.push('LP lock strong')
+      if (tx != null && tx >= 1000) tips.push('Active market conditions')
+    } else if (label === 'RISKY') {
+      tips.push('Wait for confirmation (volume or LP)')
+      if (locked != null && locked < 25) tips.push('Low LP lock')
+      if (volToMc != null && volToMc < 0.2) tips.push('Weak vol/MC')
+      if (oldAndSmall) tips.push('Older microcap; elevated risk')
+    } else if (label === 'UNSAFE') {
+      tips.push('Avoid for now')
+      if (oldAndSmall) tips.push('Old and sub-$20k market')
+      if (priceCh24 != null && priceCh24 > 400) tips.push('Extreme pump risk')
+      if (priceCh24 != null && priceCh24 < -60) tips.push('Heavy dumping')
+    }
+
+    const headline = label === 'SAFE' ? 'Safe Recommendation' : label === 'RISKY' ? 'Caution Recommendation' : 'High-Risk Recommendation'
+    const vibe = label === 'SAFE' ? 'cool' : label === 'RISKY' ? 'cautious' : 'unsafe'
+    return { headline, vibe, tips }
+  }, [health?.label, lpLockedPct, tx24, volToMc, ageMin, marketCap, priceCh24])
 
   useEffect(() => {
     if (typeof priceUsd === 'number' && isFinite(priceUsd)) setPriceUsdStable(priceUsd)
@@ -366,7 +414,7 @@ export function MemeScanner({ mint = DEFAULT_MINT, onAfterTrade }: { mint?: stri
               </div>
               <div className="card">
                 <div className="kpi-title">Market Cap</div>
-                <div className="kpi-value">{(marketCapStable ?? marketCapFinal) != null ? `$${formatCompact((marketCapStable ?? marketCapFinal) as number)}` : '—'}</div>
+                <div className="kpi-value">{(marketCapStable ?? marketCap) != null ? `$${formatCompact((marketCapStable ?? marketCap) as number)}` : '—'}</div>
               </div>
               <div className="card">
                 <div className="kpi-title">Supply</div>
@@ -446,6 +494,29 @@ export function MemeScanner({ mint = DEFAULT_MINT, onAfterTrade }: { mint?: stri
                   ))}
                 </ul>
               ) : null}
+
+              {/* Recommendation */}
+              <div className="card" style={{ marginTop: spacing.sm, background: 'transparent', border: `1px dashed ${colors.surfaceBorder}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <strong>{recommendation.headline}</strong>
+                  <span
+                    style={{
+                      background: recommendation.vibe === 'cool' ? 'rgba(94,234,212,0.12)' : recommendation.vibe === 'cautious' ? 'rgba(255,209,102,0.12)' : 'rgba(239,68,68,0.12)',
+                      border: `1px solid ${recommendation.vibe === 'cool' ? colors.success : recommendation.vibe === 'cautious' ? '#ffd166' : '#ff7b7b'}`,
+                      padding: '2px 8px', borderRadius: 999, fontWeight: 800, color: recommendation.vibe === 'cool' ? colors.success : recommendation.vibe === 'cautious' ? '#ffd166' : '#ff7b7b', fontSize: type.label
+                    }}
+                  >
+                    {recommendation.vibe.toUpperCase()}
+                  </span>
+                </div>
+                {recommendation.tips.length ? (
+                  <ul style={{ marginTop: 6, marginBottom: 0, color: colors.textSecondary }}>
+                    {recommendation.tips.map((t, i) => (
+                      <li key={i} style={{ fontSize: type.label }}>{t}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
             </div>
 
             {/* Trading */}

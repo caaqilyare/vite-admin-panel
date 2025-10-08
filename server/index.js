@@ -258,7 +258,7 @@ app.get('/api/scan/price/:mint', async (req, res) => {
     res.json({ price });
   } catch (e) {
     // Graceful fallback: null price with error message
-    res.json({ price: PRICE_FALLBACK, error: String(e?.message || e) });
+    res.json({ price: PRICE_FALLBACK, error: String(e?.message || e), isFallback: true });
   }
 });
 
