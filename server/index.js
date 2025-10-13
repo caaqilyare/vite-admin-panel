@@ -190,11 +190,10 @@ const REPORT_TTL_MS = 300_000; // cache RugCheck report for 5 minutes
 // Lightweight cache for FluxBeam price to stabilize 300ms polling
 const priceCache = new Map(); // mint -> { ts: number, price: number|null }
 const PRICE_TTL_MS = 300; // align with frontend polling cadence
+const PRICE_ERROR_CACHE_TTL_MS = 5000; // allow using a recent cached price for brief outages
 
 // Summary cache to preserve last known good price/supply/marketCap
 const summaryCache = new Map(); // mint -> { ts: number, price: number|null, supply: number|null, marketCap: number|null }
-// Fallback price to avoid nulls in the client when upstream price is unavailable
-const PRICE_FALLBACK = 0.00004996332706936711;
 async function getCachedReport(mint) {
   const now = Date.now();
   const cached = reportCache.get(mint);
@@ -257,8 +256,15 @@ app.get('/api/scan/price/:mint', async (req, res) => {
     const price = await getCachedFluxPrice(mint);
     res.json({ price });
   } catch (e) {
-    // Graceful fallback: null price with error message
-    res.json({ price: PRICE_FALLBACK, error: String(e?.message || e), isFallback: true });
+    // Graceful fallback: return last cached price if available, else null
+    const { mint } = req.params;
+    const cached = priceCache.get(mint);
+    const now = Date.now();
+    const hasRecent = !!(cached && (now - cached.ts) < PRICE_ERROR_CACHE_TTL_MS && typeof cached.price === 'number' && Number.isFinite(cached.price));
+    if (hasRecent) {
+      return res.json({ price: cached.price, error: String(e?.message || e), isFallback: false });
+    }
+    res.json({ price: null, error: String(e?.message || e), isFallback: true });
   }
 });
 
@@ -356,13 +362,13 @@ app.get('/api/scan/summary/:mint', async (req, res) => {
     const priceNew = (typeof fluxPrice === 'number' && Number.isFinite(fluxPrice)) ? fluxPrice : null;
 
     const cached = summaryCache.get(mint) || { price: null, supply: null, marketCap: null };
-    const price = (priceNew != null) ? priceNew : (cached.price != null ? cached.price : PRICE_FALLBACK);
+    const price = (priceNew != null) ? priceNew : (cached.price != null ? cached.price : null);
     const supply = (supplyNew != null && supplyNew > 0) ? supplyNew : cached.supply;
     const priceUsd = price != null ? price : null;
     const marketCapNew = (priceUsd != null && supply != null)
       ? priceUsd * supply
       : null;
-    const marketCap = (marketCapNew != null && Number.isFinite(marketCapNew)) ? marketCapNew : cached.marketCap ?? null;
+    const marketCap = (marketCapNew != null && Number.isFinite(marketCapNew)) ? marketCapNew : (cached.marketCap ?? null);
 
     summaryCache.set(mint, { ts: Date.now(), price: price ?? null, supply: supply ?? null, marketCap: marketCap ?? null });
     res.json({ mint, price, priceUsd, supply, marketCap, report });
