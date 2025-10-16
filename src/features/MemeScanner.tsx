@@ -157,6 +157,7 @@ export function MemeScanner({ mint = DEFAULT_MINT, onAfterTrade }: { mint?: stri
   const [searchedMint, setSearchedMint] = useState<string | null>(null)
   const hasSearched = !!searchedMint
   const canScan = isValidMint(inputMint)
+  const [inputFocused, setInputFocused] = useState(false)
 
   const reportKey = searchedMint ? (['report', searchedMint] as const) : null
   const priceKey = searchedMint ? (['price', searchedMint] as const) : null
@@ -322,21 +323,128 @@ export function MemeScanner({ mint = DEFAULT_MINT, onAfterTrade }: { mint?: stri
     <Card variant="glass">
       <div style={{ width: '100%', maxWidth: '95%', margin: '0 auto' }}>
         {/* Search row */}
-        <div style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${colors.surfaceBorder}`, borderRadius: 14, padding: spacing.sm, marginBottom: spacing.md }}>
-          <div className="searchRow" style={{ display: 'grid', gap: spacing.sm }}>
+        <div style={{
+          background: 'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.035))',
+          border: `1px solid ${colors.surfaceBorder}`,
+          borderRadius: 18,
+          padding: spacing.sm,
+          marginBottom: spacing.md,
+          boxShadow: '0 8px 28px rgba(0,0,0,0.28) inset, 0 6px 18px rgba(0,0,0,0.25)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)'
+        }}>
+          <div
+            className="searchRow"
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: spacing.sm,
+              alignItems: 'stretch'
+            }}
+          >
             <input
               value={inputMint}
               onChange={e => setInputMint(e.target.value)}
               placeholder="Paste Solana token mint..."
               className="mono"
-              style={{ background: '#0f1320', color: colors.textPrimary, border: `1px solid ${colors.surfaceBorder}`, borderRadius: 12, padding: '10px 12px' }}
+              onFocus={() => setInputFocused(true)}
+              onBlur={() => setInputFocused(false)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && canScan) setSearchedMint(inputMint.trim())
+              }}
+              style={{
+                background: 'linear-gradient(180deg, #0b0f1a, #0a0d17)',
+                color: colors.textPrimary,
+                border: `1px solid ${inputFocused ? '#7c3aed' : colors.surfaceBorder}`,
+                borderRadius: 12,
+                padding: '12px 16px',
+                outline: 'none',
+                height: 44,
+                boxShadow: inputFocused ? '0 0 0 4px rgba(124,58,237,0.18), 0 2px 10px rgba(0,0,0,0.35) inset' : '0 2px 10px rgba(0,0,0,0.25) inset',
+                letterSpacing: 0.2,
+                flex: '1 1 260px',
+                minWidth: 0
+              }}
               autoCapitalize="off"
               autoCorrect="off"
             />
-            <button onClick={() => canScan && setSearchedMint(inputMint.trim())} className="primary" disabled={!canScan}> {hasSearched ? 'Rescan' : 'Scan'} </button>
-            <button onClick={() => { setInputMint(''); setSearchedMint(null); }}>Clear</button>
+            <button
+              title="Paste from clipboard"
+              onClick={async () => {
+                try {
+                  const text = await navigator.clipboard.readText()
+                  if (text) setInputMint(text.trim())
+                } catch {}
+              }}
+              style={{
+                height: 44,
+                width: 110,
+                padding: '0 14px',
+                borderRadius: 12,
+                border: `1px solid ${colors.surfaceBorder}`,
+                background: 'rgba(255,255,255,0.06)',
+                color: colors.textPrimary,
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                cursor: 'pointer',
+                flex: '0 0 110px'
+              }}
+            >
+              <span>📋</span>
+              <span>Paste</span>
+            </button>
+            <button
+              title={canScan ? 'Scan token' : 'Enter a valid mint to scan'}
+              onClick={() => canScan && setSearchedMint(inputMint.trim())}
+              className="primary"
+              disabled={!canScan}
+              style={{
+                height: 44,
+                width: 110,
+                padding: '0 16px',
+                borderRadius: 12,
+                fontWeight: 900,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                background: canScan ? 'linear-gradient(90deg, #7c3aed, #06b6d4)' : undefined,
+                border: canScan ? 'none' : undefined,
+                boxShadow: canScan ? '0 4px 18px rgba(124,58,237,0.35)' : undefined,
+                color: canScan ? '#ffffff' : undefined,
+                flex: '0 0 110px'
+              }}
+            >
+              <span>🔎</span>
+              <span>{hasSearched ? 'Rescan' : 'Scan'}</span>
+            </button>
+            <button
+              title="Clear input"
+              onClick={() => { setInputMint(''); setSearchedMint(null); }}
+              style={{
+                height: 44,
+                width: 110,
+                padding: '0 14px',
+                borderRadius: 12,
+                border: `1px solid ${colors.surfaceBorder}`,
+                background: 'transparent',
+                color: colors.textSecondary,
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                cursor: 'pointer',
+                flex: '0 0 110px'
+              }}
+            >
+              <span>✖️</span>
+              <span>Clear</span>
+            </button>
           </div>
-          <div style={{ color: colors.textSecondary, marginTop: 6, fontSize: type.label }}>Example: 3b11QJ******Lpump</div>
+          <div style={{ color: colors.textSecondary, marginTop: 6, fontSize: type.label, opacity: 0.8 }}>
+            Example: 3b11QJ******Lpump • Press Enter to scan
+          </div>
           {!canScan && inputMint.trim().length > 0 && (
             <div style={{ color: '#ff7b7b', fontSize: 12, marginTop: 4 }}>Invalid mint format</div>
           )}

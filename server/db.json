@@ -1,11 +1,147 @@
 {
   "user": {
     "name": "Munasar",
-    "balance": 0
+    "balance": 143.227414
   },
   "positions": {},
-  "history": [],
-  "deposits": [],
-  "lastScannedMint": "",
+  "history": [
+    {
+      "id": "1760622030677-11220d77f9795",
+      "ts": 1760622030677,
+      "side": "sell",
+      "mint": "CZTpuQ7ZgBasWGT5TCD5mBgXAQdmHfMvKspeK2VHpump",
+      "name": "boo-bies",
+      "symbol": "boobies",
+      "price": 0.000038940601975532284,
+      "qty": 2236650.495878,
+      "value": 87.096517,
+      "fee": 0.35,
+      "marketCap": 38940.33961882762
+    },
+    {
+      "id": "1760621885556-53a939cf06b44",
+      "ts": 1760621885556,
+      "side": "buy",
+      "mint": "CZTpuQ7ZgBasWGT5TCD5mBgXAQdmHfMvKspeK2VHpump",
+      "name": "boo-bies",
+      "symbol": "boobies",
+      "price": 0.00002541300042396211,
+      "qty": 2236650.4958778946,
+      "value": 56.84,
+      "fee": 0.35,
+      "marketCap": 25412.978528189204
+    },
+    {
+      "id": "1760532727438-ab7a9d82af9b1",
+      "ts": 1760532727438,
+      "side": "sell",
+      "mint": "EBU7NVsf39YdkxRH96jojHxSZAVthW8dgCUyDeb1pump",
+      "name": "Yep-Thats-Me",
+      "symbol": "REMY",
+      "price": 0.00003166484275521687,
+      "qty": 1771912.831384,
+      "value": 56.107341,
+      "fee": 0.35,
+      "marketCap": 31664.842755216807
+    },
+    {
+      "id": "1760531551495-88af5716c88a4",
+      "ts": 1760531551495,
+      "side": "buy",
+      "mint": "EBU7NVsf39YdkxRH96jojHxSZAVthW8dgCUyDeb1pump",
+      "name": "Yep-Thats-Me",
+      "symbol": "REMY",
+      "price": 0.00003288536488246926,
+      "qty": 1771912.8313842413,
+      "value": 58.27,
+      "fee": 0.35,
+      "marketCap": 32885.36488246919
+    },
+    {
+      "id": "1760530299856-e282322b46c01",
+      "ts": 1760530299857,
+      "side": "sell",
+      "mint": "CrwGmkSoNWW4BP5ebEddifg1rJieazg6WesuDrRnpump",
+      "name": "One Coin Policy",
+      "symbol": "硬币",
+      "price": 0.00003786495804463172,
+      "qty": 1736214.4839,
+      "value": 65.741689,
+      "fee": 0.35,
+      "marketCap": 37864.68090340687
+    },
+    {
+      "id": "1760530154793-e14921c6c45e8",
+      "ts": 1760530154793,
+      "side": "buy",
+      "mint": "CrwGmkSoNWW4BP5ebEddifg1rJieazg6WesuDrRnpump",
+      "name": "One Coin Policy",
+      "symbol": "硬币",
+      "price": 0.000029662233829731814,
+      "qty": 1736214.4838996986,
+      "value": 51.5,
+      "fee": 0.35,
+      "marketCap": 29662.016725891222
+    },
+    {
+      "id": "1760524833679-1668084907c57",
+      "ts": 1760524833679,
+      "side": "sell",
+      "mint": "BsN2uwjkFCCv98tRGwcKJ55TwWipdsHUfNe2SG5tpump",
+      "name": "MAI-Image-1",
+      "symbol": "MAI-1",
+      "price": 0.000026469896476164167,
+      "qty": 2542363.556085,
+      "value": 67.2961,
+      "fee": 0.35,
+      "marketCap": 26469.896476164166
+    },
+    {
+      "id": "1760524812503-144307da69585",
+      "ts": 1760524812503,
+      "side": "buy",
+      "mint": "BsN2uwjkFCCv98tRGwcKJ55TwWipdsHUfNe2SG5tpump",
+      "name": "MAI-Image-1",
+      "symbol": "MAI-1",
+      "price": 0.00001431345250088092,
+      "qty": 2542363.5560854645,
+      "value": 36.39,
+      "fee": 0.35,
+      "marketCap": 14313.45250088092
+    },
+    {
+      "id": "1760349856729-068f515517529",
+      "ts": 1760349856729,
+      "side": "sell",
+      "mint": "AZw443Q6M2aY3Xt9sSUuqdnAjL5NySnYBWvKFruDpump",
+      "name": "Rebuild Gaza",
+      "symbol": "REBUILD",
+      "price": 0.000040512158317561915,
+      "qty": 1011690.537073,
+      "value": 40.985767,
+      "fee": 0.35,
+      "marketCap": 40512.15831756188
+    },
+    {
+      "id": "1760349524594-55283c1953adf",
+      "ts": 1760349524594,
+      "side": "buy",
+      "mint": "AZw443Q6M2aY3Xt9sSUuqdnAjL5NySnYBWvKFruDpump",
+      "name": "Rebuild Gaza",
+      "symbol": "REBUILD",
+      "price": 0.00003212444795027571,
+      "qty": 1011690.5370733715,
+      "value": 32.5,
+      "fee": 0.35,
+      "marketCap": 32124.447950275677
+    }
+  ],
+  "deposits": [
+    {
+      "ts": 1760349475728,
+      "amount": 65
+    }
+  ],
+  "lastScannedMint": "CZTpuQ7ZgBasWGT5TCD5mBgXAQdmHfMvKspeK2VHpump",
   "todos": {}
 }
