@@ -15,6 +15,26 @@ interface RugTokenMeta {
   uri?: string
 }
 
+// PNL Analysis Types
+interface PnlData {
+  date: string
+  pnl: number
+  roi: number
+}
+
+interface PnlResponse {
+  today: PnlData
+  week: PnlData
+  month: PnlData
+  allTime: PnlData
+  customRange?: {
+    startDate: string
+    endDate: string
+    pnl: number
+    roi: number
+  }
+}
+
 // Dex types (subset)
 interface DexTxnsWindow { buys: number; sells: number }
 interface DexTxns { m5?: DexTxnsWindow; h1?: DexTxnsWindow; h6?: DexTxnsWindow; h24?: DexTxnsWindow }
@@ -152,6 +172,215 @@ function computeHealthVerdict(params: {
   return { label, reasons }
 }
 
+// PNL Analysis Component
+function PnlAnalysis({ mint }: { mint: string }) {
+  const [pnlData, setPnlData] = useState<PnlResponse | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [showDateRange, setShowDateRange] = useState(false)
+  // Native date inputs (yyyy-mm-dd)
+  const todayIso = useMemo(() => new Date().toISOString().split('T')[0], [])
+  const [startDateStr, setStartDateStr] = useState<string>(todayIso)
+  const [endDateStr, setEndDateStr] = useState<string>(todayIso)
+
+  const fetchPnlData = async (startDate?: Date, endDate?: Date) => {
+    if (!mint) return
+    
+    setLoading(true)
+    setError(null)
+    
+    try {
+      let url = `/api/pnl/${mint}`
+      if (startDate && endDate) {
+        const params = new URLSearchParams({
+          startDate: startDate.toISOString().split('T')[0],
+          endDate: endDate.toISOString().split('T')[0]
+        })
+        url += `?${params.toString()}`
+      }
+      
+      const response = await fetch(url, {
+        headers: { 'Accept': 'application/json' }
+      })
+      
+      if (!response.ok) throw new Error('Failed to fetch PNL data')
+      
+      const data = await response.json()
+      setPnlData(data)
+    } catch (err) {
+      console.error('Error fetching PNL data:', err)
+      setError('Failed to load PNL data')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchPnlData()
+  }, [mint])
+
+  const handleDateRangeApply = () => {
+    const startDate = new Date(startDateStr)
+    const endDate = new Date(endDateStr)
+    if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+      fetchPnlData(startDate, endDate)
+      setShowDateRange(false)
+    }
+  }
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(value)
+  }
+
+  const formatPercent = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'percent',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(value / 100)
+  }
+
+  const getPnlColor = (value: number) => {
+    if (value > 0) return 'text-green-500'
+    if (value < 0) return 'text-red-500'
+    return 'text-gray-400'
+  }
+
+  if (loading && !pnlData) {
+    return <div className="p-4 text-center text-gray-400">Loading PNL data...</div>
+  }
+
+  if (error) {
+    return <div className="p-4 text-center text-red-500">{error}</div>
+  }
+
+  if (!pnlData) return null
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Today's PNL */}
+        <div className="bg-gray-800 rounded-lg p-4 shadow">
+          <h3 className="text-sm font-medium text-gray-400 mb-2">Today's PNL</h3>
+          <div className={`text-2xl font-bold ${getPnlColor(pnlData.today.pnl)}`}>
+            {formatCurrency(pnlData.today.pnl)}
+          </div>
+          <div className={`text-sm ${getPnlColor(pnlData.today.roi)}`}>
+            {formatPercent(pnlData.today.roi)} ROI
+          </div>
+        </div>
+
+        {/* This Week's PNL */}
+        <div className="bg-gray-800 rounded-lg p-4 shadow">
+          <h3 className="text-sm font-medium text-gray-400 mb-2">This Week's PNL</h3>
+          <div className={`text-2xl font-bold ${getPnlColor(pnlData.week.pnl)}`}>
+            {formatCurrency(pnlData.week.pnl)}
+          </div>
+          <div className={`text-sm ${getPnlColor(pnlData.week.roi)}`}>
+            {formatPercent(pnlData.week.roi)} ROI
+          </div>
+        </div>
+
+        {/* This Month's PNL */}
+        <div className="bg-gray-800 rounded-lg p-4 shadow">
+          <h3 className="text-sm font-medium text-gray-400 mb-2">This Month's PNL</h3>
+          <div className={`text-2xl font-bold ${getPnlColor(pnlData.month.pnl)}`}>
+            {formatCurrency(pnlData.month.pnl)}
+          </div>
+          <div className={`text-sm ${getPnlColor(pnlData.month.roi)}`}>
+            {formatPercent(pnlData.month.roi)} ROI
+          </div>
+        </div>
+
+        {/* All Time PNL */}
+        <div className="bg-gray-800 rounded-lg p-4 shadow">
+          <h3 className="text-sm font-medium text-gray-400 mb-2">All Time PNL</h3>
+          <div className={`text-2xl font-bold ${getPnlColor(pnlData.allTime.pnl)}`}>
+            {formatCurrency(pnlData.allTime.pnl)}
+          </div>
+          <div className={`text-sm ${getPnlColor(pnlData.allTime.roi)}`}>
+            {formatPercent(pnlData.allTime.roi)} ROI
+          </div>
+        </div>
+      </div>
+
+      {/* Custom Date Range Picker */
+      }
+      <div className="mt-6">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-semibold text-white">Custom Date Range</h3>
+          <button
+            onClick={() => setShowDateRange(!showDateRange)}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm font-medium text-white transition-colors"
+          >
+            {showDateRange ? 'Hide Date Picker' : 'Select Date Range'}
+          </button>
+        </div>
+
+        {showDateRange && (
+          <div className="bg-gray-800 p-4 rounded-lg shadow-lg mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Start date</label>
+                <input
+                  type="date"
+                  value={startDateStr}
+                  max={endDateStr}
+                  onChange={(e) => setStartDateStr(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-700 rounded-md px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">End date</label>
+                <input
+                  type="date"
+                  value={endDateStr}
+                  min={startDateStr}
+                  onChange={(e) => setEndDateStr(e.target.value)}
+                  className="w-full bg-gray-900 border border-gray-700 rounded-md px-3 py-2 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-600"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end space-x-3 mt-4">
+              <button
+                onClick={() => setShowDateRange(false)}
+                className="px-4 py-2 border border-gray-600 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDateRangeApply}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm font-medium text-white transition-colors"
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+        )}
+
+        {pnlData.customRange && (
+          <div className="bg-gray-800 rounded-lg p-4 shadow">
+            <h3 className="text-sm font-medium text-gray-400 mb-2">
+              Custom Range: {new Date(pnlData.customRange.startDate).toLocaleDateString()} - {new Date(pnlData.customRange.endDate).toLocaleDateString()}
+            </h3>
+            <div className={`text-2xl font-bold ${getPnlColor(pnlData.customRange.pnl)}`}>
+              {formatCurrency(pnlData.customRange.pnl)}
+            </div>
+            <div className={`text-sm ${getPnlColor(pnlData.customRange.roi)}`}>
+              {formatPercent(pnlData.customRange.roi)} ROI
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export function MemeScanner({ mint = DEFAULT_MINT, onAfterTrade }: { mint?: string; onAfterTrade?: () => void }) {
   const [inputMint, setInputMint] = useState(mint)
   const [searchedMint, setSearchedMint] = useState<string | null>(null)
@@ -195,10 +424,12 @@ export function MemeScanner({ mint = DEFAULT_MINT, onAfterTrade }: { mint?: stri
   const totalHolders = report?.totalHolders
 
   const supply = useMemo(() => {
-    if (!report?.token) return null
+    if (!report?.token) return 999_999_999
     const d = report.token.decimals ?? 0
     const raw = report.token.supply
-    return Number.isFinite(raw) ? raw / Math.pow(10, d) : null
+    // Default to 1B if supply is missing
+    const computed = Number.isFinite(raw) ? (raw as number) / Math.pow(10, d) : null
+    return computed != null && isFinite(computed) && computed > 0 ? computed : 1_000_000_000
   }, [report])
 
   const priceUsd = useMemo(() => {
@@ -589,14 +820,8 @@ export function MemeScanner({ mint = DEFAULT_MINT, onAfterTrade }: { mint?: stri
                   </div>
                 </div>
               </div>
-
-              <div style={{ marginTop: spacing.sm, color: colors.textSecondary, fontSize: type.label }}>
-                {priceCh24 != null && <span style={{ marginRight: 12 }}>Price 24h: {priceCh24.toFixed(1)}%</span>}
-                {typeof lpLockedPct === 'number' && <span>LP: {lpLockedPct.toFixed(0)}%</span>}
-              </div>
-
               {health?.reasons?.length ? (
-                <ul style={{ marginTop: spacing.sm, color: colors.textSecondary }}>
+                <ul style={{ marginTop: 6, marginBottom: 0, color: colors.textSecondary }}>
                   {health.reasons.map((r, i) => (
                     <li key={i} style={{ fontSize: type.label }}>{r}</li>
                   ))}
@@ -627,12 +852,17 @@ export function MemeScanner({ mint = DEFAULT_MINT, onAfterTrade }: { mint?: stri
               </div>
             </div>
 
+            {/* PNL Analysis Section */}
+            <div className="card" style={{ marginTop: spacing.md }}>
+              <h3 style={{ marginTop: 0, marginBottom: spacing.md }}>PNL Analysis</h3>
+              {searchedMint && <PnlAnalysis mint={searchedMint} />}
+            </div>
+
             {/* Trading */}
             <div className="card" style={{ marginTop: spacing.md }}>
               <h3 style={{ marginTop: 0 }}>Trade</h3>
               <TradePanel
                 mint={searchedMint!}
-                name={tokenName || undefined}
                 symbol={tokenSymbol || undefined}
                 currentPrice={(priceUsdStable ?? priceUsd) ?? null}
                 marketCap={(marketCapStable ?? marketCap) ?? null}

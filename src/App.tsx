@@ -22,6 +22,8 @@ import {
   Snackbar,
   Alert,
   IconButton,
+  Tabs,
+  Tab,
 } from '@mui/material'
 import EditIcon from '@mui/icons-material/Edit'
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet'
@@ -29,6 +31,8 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import RestartAltIcon from '@mui/icons-material/RestartAlt'
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
+import SettingsIcon from '@mui/icons-material/Settings'
+import PortfolioAnalyzer from './features/PortfolioAnalyzer'
 
 type HistoryItem = {
   id: string
@@ -68,6 +72,7 @@ function App() {
   const [state, setState] = useState<AppState | null>(null)
   const [, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [activeView, setActiveView] = useState<'scanner' | 'portfolio'>('scanner')
 
   const [name, setName] = useState('')
   const [depositAmt, setDepositAmt] = useState('')
@@ -80,6 +85,9 @@ function App() {
   const [resetNoticeOpen, setResetNoticeOpen] = useState(false)
   const [copiedActivityId, setCopiedActivityId] = useState<string | null>(null)
   const [activityDense, setActivityDense] = useState(false)
+  const [openSettings, setOpenSettings] = useState(false)
+  const [settings, setSettings] = useState<{ primarySource: 'rugcheck' | 'dexscreener'; fluxbeamOverrideText: string }>({ primarySource: 'rugcheck', fluxbeamOverrideText: '' })
+  const [settingsSaving, setSettingsSaving] = useState(false)
   const contentRef = useRef<HTMLDivElement | null>(null)
   const isSmall = useMediaQuery('(max-width:600px)')
 
@@ -96,6 +104,45 @@ function App() {
         ? { minimumFractionDigits: fixed, maximumFractionDigits: fixed }
         : { maximumFractionDigits: digits }
     return n.toLocaleString(undefined, opts)
+  }
+
+  async function loadSettings() {
+    try {
+      const res = await fetch('/api/settings', { headers: { 'Accept': 'application/json' } })
+      if (!res.ok) throw new Error('Failed to load settings')
+      const s = await res.json()
+      setSettings({
+        primarySource: s?.primarySource === 'dexscreener' ? 'dexscreener' : 'rugcheck',
+        fluxbeamOverrideText: typeof s?.fluxbeamOverrideText === 'string' ? s.fluxbeamOverrideText : ''
+      })
+    } catch (e) {
+      // ignore; keep defaults
+    }
+  }
+
+  useEffect(() => {
+    // load settings initially
+    loadSettings()
+  }, [])
+
+  async function saveSettings() {
+    try {
+      setSettingsSaving(true)
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+      })
+      if (!res.ok) throw new Error('Failed to save settings')
+      await res.json()
+      setOpenSettings(false)
+      // refresh anything depending on settings
+      await refresh()
+    } catch (e) {
+      setError((e as any)?.message || 'Failed to save settings')
+    } finally {
+      setSettingsSaving(false)
+    }
   }
 
   function shortAddress(addr: string, left = 4, right = 4) {
@@ -391,6 +438,60 @@ function App() {
     return buyCost - sellProceeds
   }, [buyCost, sellProceeds])
 
+  // Profile period PnL: Today (since midnight), This Week (calendar week from Monday), This Month (calendar month) — realized only
+  const {
+    pnlToday, roiToday, buysToday, feesToday, cntToday,
+    pnlWeek, roiWeek, buysWeek, feesWeek, cntWeek,
+    pnlMonth, roiMonth, buysMonth, feesMonth, cntMonth,
+    weekRangeLabel, monthRangeLabel,
+  } = useMemo(() => {
+    const hist = state?.history || []
+    const startOfToday = (() => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime() })()
+    // Calendar week (Mon 00:00:00)
+    const startOfWeek = (() => { const d = new Date(); d.setHours(0,0,0,0); const day = d.getDay(); const diff = (day + 6) % 7; d.setDate(d.getDate() - diff); return d.getTime() })()
+    // Calendar month (1st day 00:00:00)
+    const startOfMonth = (() => { const d = new Date(); d.setHours(0,0,0,0); d.setDate(1); return d.getTime() })()
+
+    function calc(tsStart: number) {
+      let buys = 0, sells = 0, fees = 0, count = 0
+      for (const h of hist) {
+        if (h.ts >= tsStart) {
+          const val = Number(h.value) || 0
+          const fee = Number(h.fee) || 0
+          if (h.side === 'buy') buys += val; else sells += val
+          fees += fee
+          count += 1
+        }
+      }
+      const pnl = sells - buys - fees
+      const roi = buys > 0 ? (pnl / buys) * 100 : null
+      return { pnl, roi, buys, fees, count }
+    }
+
+    const t = calc(startOfToday)
+    const w = calc(startOfWeek)
+    const m = calc(startOfMonth)
+
+    const fmtShort = (dt: Date) => dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+    const weekLabel = (() => {
+      const s = new Date(startOfWeek)
+      const e = new Date()
+      return `${fmtShort(s)} – ${fmtShort(e)}`
+    })()
+    const monthLabel = (() => {
+      const s = new Date(startOfMonth)
+      const e = new Date()
+      return `${fmtShort(s)} – ${fmtShort(e)}`
+    })()
+
+    return {
+      pnlToday: t.pnl, roiToday: t.roi, buysToday: t.buys, feesToday: t.fees, cntToday: t.count,
+      pnlWeek: w.pnl, roiWeek: w.roi, buysWeek: w.buys, feesWeek: w.fees, cntWeek: w.count,
+      pnlMonth: m.pnl, roiMonth: m.roi, buysMonth: m.buys, feesMonth: m.fees, cntMonth: m.count,
+      weekRangeLabel: weekLabel, monthRangeLabel: monthLabel,
+    }
+  }, [state?.history])
+
   // Group history by token to show a single card per mint
   const groupedActivity = useMemo(() => {
     const hist = state?.history || []
@@ -457,10 +558,30 @@ function App() {
             <IconButton aria-label="Export PDF" color="secondary" onClick={handleExportPDF}>
               <PictureAsPdfIcon />
             </IconButton>
+            <IconButton aria-label="Settings" color="primary" onClick={() => setOpenSettings(true)}>
+              <SettingsIcon />
+            </IconButton>
             
           </Stack>
         </Toolbar>
       </AppBar>
+
+      {/* View Switcher */}
+      <Box sx={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <Container>
+          <Tabs
+            value={activeView}
+            onChange={(_, v) => setActiveView(v)}
+            textColor="secondary"
+            indicatorColor="secondary"
+            variant="scrollable"
+            sx={{ minHeight: 44, '& .MuiTab-root': { minHeight: 44 } }}
+          >
+            <Tab value="scanner" label="Meme Scanner" />
+            <Tab value="portfolio" label="Portfolio Analyzer" />
+          </Tabs>
+        </Container>
+      </Box>
 
       <Container sx={{ py: 3 }} ref={contentRef}>
         {error && <Paper sx={{ p: 2, borderColor: 'error.main' }} className="alert error">{error}</Paper>}
@@ -490,149 +611,159 @@ function App() {
         </Grid>
 
         <Grid container spacing={2} sx={{ mt: 1 }}>
-          <Grid item xs={12} md={12}>
-            <MemeScanner onAfterTrade={refresh} />
-          </Grid>
-
-          {positions.length > 0 && (
-          <Grid item xs={12}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" gutterBottom>Positions</Typography>
-              <Grid container spacing={1.5}>
-                {positions.map(([m, p]) => {
-                  const titleFull = p.name || p.symbol || m
-                  const title = isSmall ? truncate(titleFull, 12) : titleFull
-                  const mintShown = isSmall ? shortAddress(m) : m
-                  return (
-                    <Grid item xs={12} sm={6} md={4} key={m}>
-                      <Paper variant="outlined" sx={{ p: 1.25 }}>
-                        <Stack spacing={0.5}>
-                          <Stack direction="row" justifyContent="space-between" alignItems="center">
-                            <Chip size="small" label={p.symbol || 'TOKEN'} />
-                            <Button size="small" variant="text" onClick={async () => { try { await navigator.clipboard.writeText(m) } catch {} }}>Copy</Button>
-                          </Stack>
-                          <Typography variant="subtitle2" fontWeight={800} title={titleFull} sx={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical' }}>{title}</Typography>
-                          <Typography variant="caption" className="mono" color="text.secondary" title={m} sx={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflowWrap: 'anywhere' }}>{mintShown}</Typography>
-                          <Stack direction="row" justifyContent="space-between">
-                            <Typography variant="caption" color="text.secondary">Qty</Typography>
-                            <Typography variant="caption">{fmt(p.qty)}</Typography>
-                          </Stack>
-                          <Stack direction="row" justifyContent="space-between">
-                            <Typography variant="caption" color="text.secondary">Avg Price</Typography>
-                            <Typography variant="caption">${fmt(p.avgPrice)}</Typography>
-                          </Stack>
-                        </Stack>
-                      </Paper>
-                    </Grid>
-                  )
-                })}
+          {activeView === 'scanner' ? (
+            <>
+              <Grid item xs={12} md={12}>
+                <MemeScanner onAfterTrade={refresh} />
               </Grid>
-            </Paper>
-          </Grid>
-          )}
 
-          <Grid item xs={12}>
-            <Paper sx={{ p: 2 }}>
-              <Stack direction="row" alignItems="center" justifyContent="space-between">
-                <Typography variant="h6" gutterBottom>Recent Activity</Typography>
-                <Button size="small" variant="outlined" onClick={() => setActivityDense(v => !v)}>{activityDense ? 'Comfy' : 'Compact'}</Button>
-              </Stack>
-              {(groupedActivity.length) === 0 ? (
-                <Typography variant="body2" color="text.secondary">No activity yet</Typography>
-              ) : (
-                <Grid container spacing={1.5}>
-                  {groupedActivity.map(g => {
-                    const titleFull = g.name || g.symbol || shortAddress(g.mint)
-                    const title = isSmall ? truncate(titleFull, 12) : titleFull
-                    const mintShown = isSmall ? shortAddress(g.mint) : g.mint
-                    const buyTime = g.lastBuy?.ts ? new Date(g.lastBuy.ts).toLocaleString() : null
-                    const sellTime = g.lastSell?.ts ? new Date(g.lastSell.ts).toLocaleString() : null
-                    const buyCap = g.lastBuy?.marketCap
-                    const sellCap = g.lastSell?.marketCap
-                    const pnlColor = (g.pnl ?? 0) >= 0 ? 'success.main' : 'error.main'
-                    const isWin = (g.pnl ?? 0) >= 0
-                    const cardBg = isWin
-                      ? 'linear-gradient(180deg, rgba(34,197,94,0.14), rgba(34,197,94,0.06))'
-                      : 'linear-gradient(180deg, rgba(239,68,68,0.14), rgba(239,68,68,0.06))'
-                    const cardBorder = isWin ? '1px solid rgba(34,197,94,0.35)' : '1px solid rgba(239,68,68,0.35)'
-                    const copied = copiedActivityId === g.mint
-                    return (
-                      <Grid item xs={12} sm={6} md={4} key={g.mint}>
-                        <Paper
-                          variant="outlined"
-                          sx={{
-                            p: activityDense ? 1 : 1.5,
-                            borderRadius: 2,
-                            background: cardBg,
-                            border: cardBorder,
-                            transition: 'all .2s',
-                            '&:hover': { boxShadow: 6, transform: 'translateY(-1px)' },
-                          }}
-                        >
-                          <Stack spacing={activityDense ? 0.75 : 1}>
-                            <Stack direction="row" justifyContent="space-between" alignItems="center">
-                              <Chip size="small" label={g.symbol || 'TOKEN'} sx={{ fontWeight: 700 }} />
-                              <Stack direction="row" spacing={1} alignItems="center">
-                                <Typography variant="caption" color="text.secondary">⏱ {new Date(g.lastTs).toLocaleString()}</Typography>
-                                <IconButton size="small" color={copied ? 'success' : 'default'} aria-label="Copy address" onClick={async () => { try { await navigator.clipboard.writeText(g.mint); setCopiedActivityId(g.mint); setTimeout(() => setCopiedActivityId(null), 1200) } catch {} }}>
-                                  <ContentCopyIcon fontSize="inherit" />
-                                </IconButton>
-                                {(g.lastBuy || g.lastSell) && (
-                                  <IconButton size="small" aria-label="Open details" onClick={() => { const item = g.lastSell || g.lastBuy!; setSelectedActivity(item); setActivityOpen(true) }}>
-                                    <OpenInNewIcon fontSize="inherit" />
-                                  </IconButton>
-                                )}
+              {positions.length > 0 && (
+              <Grid item xs={12}>
+                <Paper sx={{ p: 2 }}>
+                  <Typography variant="h6" gutterBottom>Positions</Typography>
+                  <Grid container spacing={1.5}>
+                    {positions.map(([m, p]) => {
+                      const titleFull = p.name || p.symbol || m
+                      const title = isSmall ? truncate(titleFull, 12) : titleFull
+                      const mintShown = isSmall ? shortAddress(m) : m
+                      return (
+                        <Grid item xs={12} sm={6} md={4} key={m}>
+                          <Paper variant="outlined" sx={{ p: 1.25 }}>
+                            <Stack spacing={0.5}>
+                              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                <Chip size="small" label={p.symbol || 'TOKEN'} />
+                                <Button size="small" variant="text" onClick={async () => { try { await navigator.clipboard.writeText(m) } catch {} }}>Copy</Button>
+                              </Stack>
+                              <Typography variant="subtitle2" fontWeight={800} title={titleFull} sx={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical' }}>{title}</Typography>
+                              <Typography variant="caption" className="mono" color="text.secondary" title={m} sx={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflowWrap: 'anywhere' }}>{mintShown}</Typography>
+                              <Stack direction="row" justifyContent="space-between">
+                                <Typography variant="caption" color="text.secondary">Qty</Typography>
+                                <Typography variant="caption">{fmt(p.qty)}</Typography>
+                              </Stack>
+                              <Stack direction="row" justifyContent="space-between">
+                                <Typography variant="caption" color="text.secondary">Avg Price</Typography>
+                                <Typography variant="caption">${fmt(p.avgPrice)}</Typography>
                               </Stack>
                             </Stack>
-                            <Stack direction="row" justifyContent="space-between" alignItems="center">
-                              <Typography variant="subtitle2" fontWeight={900} title={titleFull} sx={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical' }}>{title}</Typography>
-                              <Chip size="small" label={`${g.pnlPct == null ? '—' : (g.pnlPct >= 0 ? '▲ +' : '▼ -') + Math.abs(g.pnlPct).toFixed(2) + '%'}`} color={isWin ? 'success' : 'error'} variant="filled" />
-                            </Stack>
-                            <Stack direction="row" spacing={1} alignItems="center" sx={{ opacity: 0.8 }}>
-                              <Chip size="small" label={isWin ? 'Winning' : 'Losing'} color={isWin ? 'success' : 'error'} variant="outlined" />
-                              <Chip size="small" label={`Last: ${(g.lastAction || 'buy').toUpperCase()}`} variant="outlined" />
-                            </Stack>
-                            <Typography variant="caption" className="mono" color="text.secondary" title={g.mint} sx={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflowWrap: 'anywhere' }}>{mintShown}</Typography>
-
-                            <Divider sx={{ my: 0.5, opacity: 0.6 }} />
-
-                            <Stack spacing={0.5}>
-                              <Typography variant="overline" color="text.secondary">🟢 Buy</Typography>
-                              <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Time</Typography><Typography variant="caption">{buyTime || '—'}</Typography></Stack>
-                              <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Price</Typography><Typography variant="caption">{g.buyWeightedPrice == null ? '—' : `$${fmt(g.buyWeightedPrice, 6, 6)}`}</Typography></Stack>
-                              <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Amount</Typography><Typography variant="caption">${fmt(g.buyCost, 6, 2)}</Typography></Stack>
-                              <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Qty Bought</Typography><Typography variant="caption">{fmt(g.totalBuyQty)}</Typography></Stack>
-                              <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Market Cap</Typography><Typography variant="caption">{buyCap == null ? '—' : `$${Number(buyCap).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}</Typography></Stack>
-                            </Stack>
-
-                            <Divider sx={{ my: 0.5, opacity: 0.6 }} />
-
-                            <Stack spacing={0.5}>
-                              <Typography variant="overline" color="text.secondary">🔴 Sell</Typography>
-                              <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Time</Typography><Typography variant="caption">{sellTime || '—'}</Typography></Stack>
-                              <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Price</Typography><Typography variant="caption">{g.sellWeightedPrice == null ? '—' : `$${fmt(g.sellWeightedPrice, 6, 6)}`}</Typography></Stack>
-                              <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Amount</Typography><Typography variant="caption">${fmt(g.sellProceeds, 6, 2)}</Typography></Stack>
-                              <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Qty Sold</Typography><Typography variant="caption">{fmt(g.totalSellQty)}</Typography></Stack>
-                              <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Market Cap</Typography><Typography variant="caption">{sellCap == null ? '—' : `$${Number(sellCap).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}</Typography></Stack>
-                            </Stack>
-
-                            <Divider sx={{ my: 0.5, opacity: 0.6 }} />
-
-                            <Stack direction="row" justifyContent="space-between" alignItems="center">
-                              <Typography variant="caption" color="text.secondary">PnL</Typography>
-                              <Typography variant="caption" fontWeight={900} color={pnlColor}>
-                                {g.pnl >= 0 ? '▲ +' : '▼ -'}${fmt(Math.abs(g.pnl), 6, 2)} {g.pnlPct == null ? '' : `(${Math.abs(g.pnlPct).toFixed(2)}%)`}
-                              </Typography>
-                            </Stack>
-                          </Stack>
-                        </Paper>
-                      </Grid>
-                    )
-                  })}
-                </Grid>
+                          </Paper>
+                        </Grid>
+                      )
+                    })}
+                  </Grid>
+                </Paper>
+              </Grid>
               )}
-            </Paper>
-          </Grid>
+
+              <Grid item xs={12}>
+                <Paper sx={{ p: 2 }}>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between">
+                    <Typography variant="h6" gutterBottom>Recent Activity</Typography>
+                    <Button size="small" variant="outlined" onClick={() => setActivityDense(v => !v)}>{activityDense ? 'Comfy' : 'Compact'}</Button>
+                  </Stack>
+                  {(groupedActivity.length) === 0 ? (
+                    <Typography variant="body2" color="text.secondary">No activity yet</Typography>
+                  ) : (
+                    <Grid container spacing={1.5}>
+                      {groupedActivity.map(g => {
+                        const titleFull = g.name || g.symbol || shortAddress(g.mint)
+                        const title = isSmall ? truncate(titleFull, 12) : titleFull
+                        const mintShown = isSmall ? shortAddress(g.mint) : g.mint
+                        const buyTime = g.lastBuy?.ts ? new Date(g.lastBuy.ts).toLocaleString() : null
+                        const sellTime = g.lastSell?.ts ? new Date(g.lastSell.ts).toLocaleString() : null
+                        const buyCap = g.lastBuy?.marketCap
+                        const sellCap = g.lastSell?.marketCap
+                        const pnlColor = (g.pnl ?? 0) >= 0 ? 'success.main' : 'error.main'
+                        const isWin = (g.pnl ?? 0) >= 0
+                        const cardBg = isWin
+                          ? 'linear-gradient(180deg, rgba(34,197,94,0.14), rgba(34,197,94,0.06))'
+                          : 'linear-gradient(180deg, rgba(239,68,68,0.14), rgba(239,68,68,0.06))'
+                        const cardBorder = isWin ? '1px solid rgba(34,197,94,0.35)' : '1px solid rgba(239,68,68,0.35)'
+                        const copied = copiedActivityId === g.mint
+                        return (
+                          <Grid item xs={12} sm={6} md={4} key={g.mint}>
+                            <Paper
+                              variant="outlined"
+                              sx={{
+                                p: activityDense ? 1 : 1.5,
+                                borderRadius: 2,
+                                background: cardBg,
+                                border: cardBorder,
+                                transition: 'all .2s',
+                                '&:hover': { boxShadow: 6, transform: 'translateY(-1px)' },
+                              }}
+                            >
+                              <Stack spacing={activityDense ? 0.75 : 1}>
+                                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                  <Chip size="small" label={g.symbol || 'TOKEN'} sx={{ fontWeight: 700 }} />
+                                  <Stack direction="row" spacing={1} alignItems="center">
+                                    <Typography variant="caption" color="text.secondary">⏱ {new Date(g.lastTs).toLocaleString()}</Typography>
+                                    <IconButton size="small" color={copied ? 'success' : 'default'} aria-label="Copy address" onClick={async () => { try { await navigator.clipboard.writeText(g.mint); setCopiedActivityId(g.mint); setTimeout(() => setCopiedActivityId(null), 1200) } catch {} }}>
+                                      <ContentCopyIcon fontSize="inherit" />
+                                    </IconButton>
+                                    {(g.lastBuy || g.lastSell) && (
+                                      <IconButton size="small" aria-label="Open details" onClick={() => { const item = g.lastSell || g.lastBuy!; setSelectedActivity(item); setActivityOpen(true) }}>
+                                        <OpenInNewIcon fontSize="inherit" />
+                                      </IconButton>
+                                    )}
+                                  </Stack>
+                                </Stack>
+                                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                  <Typography variant="subtitle2" fontWeight={900} title={titleFull} sx={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical' }}>{title}</Typography>
+                                  <Chip size="small" label={`${g.pnlPct == null ? '—' : (g.pnlPct >= 0 ? '▲ +' : '▼ -') + Math.abs(g.pnlPct).toFixed(2) + '%'}`} color={isWin ? 'success' : 'error'} variant="filled" />
+                                </Stack>
+                                <Stack direction="row" spacing={1} alignItems="center" sx={{ opacity: 0.8 }}>
+                                  <Chip size="small" label={isWin ? 'Winning' : 'Losing'} color={isWin ? 'success' : 'error'} variant="outlined" />
+                                  <Chip size="small" label={`Last: ${(g.lastAction || 'buy').toUpperCase()}`} variant="outlined" />
+                                </Stack>
+                                <Typography variant="caption" className="mono" color="text.secondary" title={g.mint} sx={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflowWrap: 'anywhere' }}>{mintShown}</Typography>
+
+                                <Divider sx={{ my: 0.5, opacity: 0.6 }} />
+
+                                <Stack spacing={0.5}>
+                                  <Typography variant="overline" color="text.secondary">🟢 Buy</Typography>
+                                  <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Time</Typography><Typography variant="caption">{buyTime || '—'}</Typography></Stack>
+                                  <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Price</Typography><Typography variant="caption">{g.buyWeightedPrice == null ? '—' : `$${fmt(g.buyWeightedPrice, 6, 6)}`}</Typography></Stack>
+                                  <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Amount</Typography><Typography variant="caption">${fmt(g.buyCost, 6, 2)}</Typography></Stack>
+                                  <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Qty Bought</Typography><Typography variant="caption">{fmt(g.totalBuyQty)}</Typography></Stack>
+                                  <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Market Cap</Typography><Typography variant="caption">{buyCap == null ? '—' : `$${Number(buyCap).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}</Typography></Stack>
+                                </Stack>
+
+                                <Divider sx={{ my: 0.5, opacity: 0.6 }} />
+
+                                <Stack spacing={0.5}>
+                                  <Typography variant="overline" color="text.secondary">🔴 Sell</Typography>
+                                  <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Time</Typography><Typography variant="caption">{sellTime || '—'}</Typography></Stack>
+                                  <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Price</Typography><Typography variant="caption">{g.sellWeightedPrice == null ? '—' : `$${fmt(g.sellWeightedPrice, 6, 6)}`}</Typography></Stack>
+                                  <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Amount</Typography><Typography variant="caption">${fmt(g.sellProceeds, 6, 2)}</Typography></Stack>
+                                  <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Qty Sold</Typography><Typography variant="caption">{fmt(g.totalSellQty)}</Typography></Stack>
+                                  <Stack direction="row" justifyContent="space-between"><Typography variant="caption" color="text.secondary">Market Cap</Typography><Typography variant="caption">{sellCap == null ? '—' : `$${Number(sellCap).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}</Typography></Stack>
+                                </Stack>
+
+                                <Divider sx={{ my: 0.5, opacity: 0.6 }} />
+
+                                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                                  <Typography variant="caption" color="text.secondary">PnL</Typography>
+                                  <Typography variant="caption" fontWeight={900} color={pnlColor}>
+                                    {g.pnl >= 0 ? '▲ +' : '▼ -'}${fmt(Math.abs(g.pnl), 6, 2)} {g.pnlPct == null ? '' : `(${Math.abs(g.pnlPct).toFixed(2)}%)`}
+                                  </Typography>
+                                </Stack>
+                              </Stack>
+                            </Paper>
+                          </Grid>
+                        )
+                      })}
+                    </Grid>
+                  )}
+                </Paper>
+              </Grid>
+            </>
+          ) : (
+            <>
+              <Grid item xs={12}>
+                <PortfolioAnalyzer />
+              </Grid>
+            </>
+          )}
         </Grid>
       </Container>
 
@@ -685,6 +816,46 @@ function App() {
           Data has been reset.
         </Alert>
       </Snackbar>
+
+      {/* Settings Dialog */}
+      <Dialog open={openSettings} onClose={() => setOpenSettings(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Settings</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Stack spacing={1}>
+              <Typography variant="overline" color="text.secondary">Primary Source</Typography>
+              <Stack direction="row" spacing={1}>
+                <Chip
+                  label="Rugcheck"
+                  color={settings.primarySource === 'rugcheck' ? 'secondary' : 'default'}
+                  variant={settings.primarySource === 'rugcheck' ? 'filled' : 'outlined'}
+                  onClick={() => setSettings(s => ({ ...s, primarySource: 'rugcheck' }))}
+                />
+                <Chip
+                  label="Dexscreener"
+                  color={settings.primarySource === 'dexscreener' ? 'secondary' : 'default'}
+                  variant={settings.primarySource === 'dexscreener' ? 'filled' : 'outlined'}
+                  onClick={() => setSettings(s => ({ ...s, primarySource: 'dexscreener' }))}
+                />
+              </Stack>
+            </Stack>
+            <Stack spacing={1}>
+              <Typography variant="overline" color="text.secondary">Fluxbeam Override Price</Typography>
+              <TextField
+                placeholder="Enter numeric price to override (leave blank to use live)"
+                value={settings.fluxbeamOverrideText}
+                onChange={e => setSettings(s => ({ ...s, fluxbeamOverrideText: e.target.value }))}
+                helperText="If set to a valid number, this price will be used for /price endpoint."
+                size="small"
+              />
+            </Stack>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenSettings(false)}>Cancel</Button>
+          <Button variant="contained" disabled={settingsSaving} onClick={saveSettings}>Save</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Deposit Dialog */}
       <Dialog open={openDeposit} onClose={() => setOpenDeposit(false)} maxWidth="xs" fullWidth>
@@ -790,7 +961,78 @@ function App() {
                 <Typography variant="h6" fontWeight={800}>${fmt(netInvested, 6, 2)}</Typography>
               </Paper>
             </Grid>
+            <Grid item xs={12} sm={6}>
+              <Paper sx={{ p: 1.5, borderRadius: 2, background: (Number(pnlToday) >= 0 ? 'linear-gradient(180deg, rgba(22,163,74,0.18), rgba(22,163,74,0.06))' : 'linear-gradient(180deg, rgba(220,38,38,0.18), rgba(220,38,38,0.06))'), border: `1px solid ${Number(pnlToday) >= 0 ? 'rgba(22,163,74,0.45)' : 'rgba(220,38,38,0.45)'}`, boxShadow: 3 }}>
+                <Typography variant="overline" color="text.secondary">PnL Today</Typography>
+                <Typography variant="h6" fontWeight={900} color={Number(pnlToday) >= 0 ? 'success.main' : 'error.main'}>
+                  {Number(pnlToday) >= 0 ? '▲ +' : '▼ -'} ${fmt(Math.abs(pnlToday ?? 0), 6, 2)} {roiToday == null ? '' : `(${Math.abs(roiToday).toFixed(2)}%)`}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">vs buys ${fmt(buysToday, 6, 2)} · fees ${fmt(feesToday, 6, 2)} · {cntToday} trades</Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Paper sx={{ p: 1.5, borderRadius: 2, background: (Number(pnlWeek) >= 0 ? 'linear-gradient(180deg, rgba(2,132,199,0.18), rgba(2,132,199,0.06))' : 'linear-gradient(180deg, rgba(220,38,38,0.18), rgba(220,38,38,0.06))'), border: `1px solid ${Number(pnlWeek) >= 0 ? 'rgba(2,132,199,0.45)' : 'rgba(220,38,38,0.45)'}`, boxShadow: 4 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
+                  <Typography variant="overline" color="text.secondary">PnL This Week</Typography>
+                  <Chip size="small" label={weekRangeLabel} />
+                </Stack>
+                <Typography variant="h6" fontWeight={900} color={Number(pnlWeek) >= 0 ? 'success.main' : 'error.main'}>
+                  {Number(pnlWeek) >= 0 ? '▲ +' : '▼ -'} ${fmt(Math.abs(pnlWeek ?? 0), 6, 2)} {roiWeek == null ? '' : `(${Math.abs(roiWeek).toFixed(2)}%)`}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">vs buys ${fmt(buysWeek, 6, 2)} · fees ${fmt(feesWeek, 6, 2)} · {cntWeek} trades</Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <Paper sx={{ p: 1.5, borderRadius: 2, background: (Number(pnlMonth) >= 0 ? 'linear-gradient(180deg, rgba(124,58,237,0.18), rgba(124,58,237,0.06))' : 'linear-gradient(180deg, rgba(220,38,38,0.18), rgba(220,38,38,0.06))'), border: `1px solid ${Number(pnlMonth) >= 0 ? 'rgba(124,58,237,0.45)' : 'rgba(220,38,38,0.45)'}`, boxShadow: 4 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
+                  <Typography variant="overline" color="text.secondary">PnL This Month</Typography>
+                  <Chip size="small" label={monthRangeLabel} />
+                </Stack>
+                <Typography variant="h6" fontWeight={900} color={Number(pnlMonth) >= 0 ? 'success.main' : 'error.main'}>
+                  {Number(pnlMonth) >= 0 ? '▲ +' : '▼ -'} ${fmt(Math.abs(pnlMonth ?? 0), 6, 2)} {roiMonth == null ? '' : `(${Math.abs(roiMonth).toFixed(2)}%)`}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">vs buys ${fmt(buysMonth, 6, 2)} · fees ${fmt(feesMonth, 6, 2)} · {cntMonth} trades</Typography>
+              </Paper>
+            </Grid>
           </Grid>
+
+          <Divider sx={{ my: 2 }} />
+          <Typography variant="h6" gutterBottom>History</Typography>
+          {(state?.history?.length || 0) === 0 ? (
+            <Typography variant="body2" color="text.secondary">No history yet</Typography>
+          ) : (
+            <Stack spacing={1} sx={{ maxHeight: 360, overflowY: 'auto', pr: 0.5 }}>
+              {state!.history
+                .slice()
+                .sort((a, b) => b.ts - a.ts)
+                .slice(0, 50)
+                .map(h => (
+                  <Paper key={h.id} variant="outlined" sx={{ p: 1 }}>
+                    <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+                      <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+                        <Chip size="small" label={h.side.toUpperCase()} color={h.side === 'buy' ? 'success' : 'error'} />
+                        <Typography variant="body2" fontWeight={800} noWrap title={h.name || h.symbol || h.mint}>
+                          {(h.name || h.symbol || shortAddress(h.mint))}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" noWrap className="mono" title={h.mint}>
+                          {shortAddress(h.mint)}
+                        </Typography>
+                      </Stack>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="caption" color="text.secondary">{new Date(h.ts).toLocaleString()}</Typography>
+                        <Divider flexItem orientation="vertical" sx={{ mx: 0.5 }} />
+                        <Typography variant="caption">Qty {fmt(h.qty)}</Typography>
+                        <Typography variant="caption">@ ${fmt(h.price)}</Typography>
+                        <Typography variant="caption" fontWeight={800}>${fmt(h.value, 6, 2)}</Typography>
+                        <IconButton size="small" aria-label="Details" onClick={() => { setSelectedActivity(h); setActivityOpen(true) }}>
+                          <OpenInNewIcon fontSize="inherit" />
+                        </IconButton>
+                      </Stack>
+                    </Stack>
+                  </Paper>
+                ))}
+            </Stack>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenProfile(false)}>Close</Button>

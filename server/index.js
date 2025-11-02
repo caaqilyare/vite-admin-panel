@@ -20,6 +20,10 @@ function initialState() {
     deposits: [],
     lastScannedMint: "",
     todos: {},
+    settings: {
+      primarySource: 'rugcheck', // 'rugcheck' | 'dexscreener'
+      fluxbeamOverrideText: '', // optional numeric text to override price
+    },
     // history items: { id, ts, side: 'buy'|'sell', mint, name?, symbol?, price, qty, value }
   };
 }
@@ -52,6 +56,7 @@ app.get('/api/state', (req, res) => {
   if (!db.history) db.history = [];
   if (!Array.isArray(db.deposits)) db.deposits = [];
   if (typeof db.lastScannedMint !== 'string') db.lastScannedMint = "";
+  if (!db.settings) db.settings = { primarySource: 'rugcheck', fluxbeamOverrideText: '' };
   // migrate legacy fields
   if (db.activity) {
     delete db.activity;
@@ -176,6 +181,31 @@ app.post('/api/reset', (req, res) => {
   res.json(initial);
 });
 
+// --- Settings Endpoints ---
+app.get('/api/settings', (req, res) => {
+  const db = readDB();
+  const settings = db.settings || { primarySource: 'rugcheck', fluxbeamOverrideText: '' };
+  // ensure shape
+  if (!settings.primarySource) settings.primarySource = 'rugcheck';
+  if (typeof settings.fluxbeamOverrideText !== 'string') settings.fluxbeamOverrideText = '';
+  if (!db.settings) { db.settings = settings; writeDB(db); }
+  res.json(settings);
+});
+
+app.post('/api/settings', (req, res) => {
+  try {
+    const { primarySource, fluxbeamOverrideText } = req.body || {};
+    const src = primarySource === 'dexscreener' ? 'dexscreener' : 'rugcheck';
+    const txt = typeof fluxbeamOverrideText === 'string' ? fluxbeamOverrideText : '';
+    const db = readDB();
+    db.settings = { primarySource: src, fluxbeamOverrideText: txt };
+    writeDB(db);
+    res.json(db.settings);
+  } catch (e) {
+    res.status(400).json({ error: 'Invalid settings payload' });
+  }
+});
+
 // --- Scanning/proxy endpoints (RugCheck + FluxBeam + SOL/USD) ---
 const BASE58_RE = /^[1-9A-HJ-NP-Za-km-z]+$/; // Solana base58 (no 0, O, I, l)
 function isValidMint(m) {
@@ -237,14 +267,94 @@ async function getCachedFluxPrice(mint) {
 
 // RugCheck proxy
 app.get('/api/scan/report/:mint', async (req, res) => {
+  const { mint } = req.params;
   try {
-    const { mint } = req.params;
     if (!isValidMint(mint)) return res.status(400).json({ error: 'Invalid mint' });
-    const report = await fetchRugReport(mint);
-    res.json(report);
+    // Honor settings or explicit query ?source=rugcheck|dexscreener
+    const db = readDB();
+    const qSource = String(req.query?.source || '').toLowerCase();
+    const pref = qSource === 'rugcheck' || qSource === 'dexscreener' ? qSource : (db?.settings?.primarySource || 'rugcheck');
+
+    async function dexAsRugFallback(cause) {
+      try {
+        const json = await fetchDexToken('solana', mint);
+        const entry = Array.isArray(json) ? json[0] : (json?.pairs?.[0] || json);
+        const base = entry?.baseToken || {};
+        const info = entry?.info || {};
+        const fallbackReport = {
+          mint,
+          token: { supply: 0, decimals: 0 },
+          tokenMeta: {
+            name: typeof base.name === 'string' ? base.name : undefined,
+            symbol: typeof base.symbol === 'string' ? base.symbol : undefined,
+          },
+          fileMeta: {
+            image: typeof info.imageUrl === 'string' ? info.imageUrl : undefined,
+            name: typeof base.name === 'string' ? base.name : undefined,
+            symbol: typeof base.symbol === 'string' ? base.symbol : undefined,
+          },
+          risks: [],
+          score: undefined,
+          score_normalised: undefined,
+          markets: [],
+          totalHolders: undefined,
+          source: 'dexscreener',
+          error: cause ? String(cause) : undefined,
+        };
+        return res.json(fallbackReport);
+      } catch (e2) {
+        return res.json({ mint, error: `RugCheck and Dexscreener failed: ${String(e2?.message || e2)}` });
+      }
+    }
+
+    if (pref === 'dexscreener') {
+      // Try Dex first, then RugCheck fallback
+      try {
+        return await dexAsRugFallback();
+      } catch (e) {
+        try {
+          const report = await fetchRugReport(mint);
+          return res.json(report);
+        } catch (e2) {
+          return res.json({ mint, error: `Dexscreener and RugCheck failed: ${String(e2?.message || e2)}` });
+        }
+      }
+    } else {
+      // Default: RugCheck first, Dex fallback
+      const report = await fetchRugReport(mint);
+      return res.json(report);
+    }
   } catch (e) {
-    // Graceful fallback: return an empty report shape with error instead of 502
-    res.json({ error: String(e?.message || e) });
+    // If RugCheck path failed (default branch), try Dex fallback
+    const cause = `RugCheck fallback: ${String(e?.message || e)}`;
+    const json = await fetchDexToken('solana', mint).catch(err => ({ __err: err }));
+    if (json && !json.__err) {
+      const entry = Array.isArray(json) ? json[0] : (json?.pairs?.[0] || json);
+      const base = entry?.baseToken || {};
+      const info = entry?.info || {};
+      const fallbackReport = {
+        mint,
+        token: { supply: 0, decimals: 0 },
+        tokenMeta: {
+          name: typeof base.name === 'string' ? base.name : undefined,
+          symbol: typeof base.symbol === 'string' ? base.symbol : undefined,
+        },
+        fileMeta: {
+          image: typeof info.imageUrl === 'string' ? info.imageUrl : undefined,
+          name: typeof base.name === 'string' ? base.name : undefined,
+          symbol: typeof base.symbol === 'string' ? base.symbol : undefined,
+        },
+        risks: [],
+        score: undefined,
+        score_normalised: undefined,
+        markets: [],
+        totalHolders: undefined,
+        source: 'dexscreener',
+        error: cause,
+      };
+      return res.json(fallbackReport);
+    }
+    return res.json({ mint, error: `RugCheck and Dexscreener failed: ${String(json?.__err?.message || json?.__err || e)}` });
   }
 });
 
@@ -253,6 +363,13 @@ app.get('/api/scan/price/:mint', async (req, res) => {
   try {
     const { mint } = req.params;
     if (!isValidMint(mint)) return res.status(400).json({ error: 'Invalid mint' });
+    // If override text is a numeric value, honor it
+    const db = readDB();
+    const txt = String(db?.settings?.fluxbeamOverrideText || '').trim();
+    const n = Number(txt);
+    if (txt && Number.isFinite(n)) {
+      return res.json({ price: n, isFallback: false, isOverride: true });
+    }
     const price = await getCachedFluxPrice(mint);
     res.json({ price });
   } catch (e) {
@@ -375,6 +492,52 @@ app.get('/api/scan/summary/:mint', async (req, res) => {
   } catch (e) {
     // Last-resort fallback
     res.json({ mint: req.params?.mint, price: null, priceUsd: null, supply: null, marketCap: null, error: String(e?.message || e) });
+  }
+});
+
+// --- PNL mock endpoint for front-end PnlAnalysis ---
+// Shape matches PnlResponse expected by the client
+// Optional query: ?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD to return customRange
+app.get('/api/pnl/:mint', (req, res) => {
+  try {
+    const { mint } = req.params;
+    const { startDate, endDate } = req.query || {};
+    if (!isValidMint(mint)) return res.status(400).json({ error: 'Invalid mint' });
+
+    // Deterministic pseudo-random generator based on mint
+    const seed = Array.from(String(mint)).reduce((a, c) => (a + c.charCodeAt(0)) % 100000, 0);
+    function prng(n) { // 0..1
+      const x = Math.sin(seed + n) * 10000;
+      return x - Math.floor(x);
+    }
+    function mkWindow(nBase, vol) {
+      // pnl in USD, roi in percentage points
+      const pnl = (nBase * (prng(nBase) - 0.45)) * vol;
+      const roi = (prng(nBase + 7) - 0.45) * 200; // -90% .. +110%
+      return { pnl: Number(pnl.toFixed(2)), roi: Number(roi.toFixed(2)) };
+    }
+
+    const today = mkWindow(1, 100);
+    const week = mkWindow(2, 700);
+    const month = mkWindow(3, 3000);
+    const allTime = mkWindow(4, 5000);
+
+    let customRange;
+    if (typeof startDate === 'string' && typeof endDate === 'string') {
+      const sd = new Date(startDate);
+      const ed = new Date(endDate);
+      if (!isNaN(sd.getTime()) && !isNaN(ed.getTime()) && ed >= sd) {
+        const days = Math.max(1, Math.ceil((ed.getTime() - sd.getTime()) / (24 * 3600 * 1000)) + 1);
+        const magnitude = Math.min(60, days) * 120; // scale with days, capped
+        const base = 10 + days;
+        const r = mkWindow(base, magnitude);
+        customRange = { startDate: sd.toISOString(), endDate: ed.toISOString(), pnl: r.pnl, roi: r.roi };
+      }
+    }
+
+    res.json({ today, week, month, allTime, ...(customRange ? { customRange } : {}) });
+  } catch (e) {
+    res.status(500).json({ error: String(e?.message || e) });
   }
 });
 

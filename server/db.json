@@ -1,10 +1,206 @@
 {
   "user": {
     "name": "Munasar",
-    "balance": 143.227414
+    "balance": 352.87055
   },
   "positions": {},
   "history": [
+    {
+      "id": "1761990965802-57988c5f250c4",
+      "ts": 1761990965802,
+      "side": "sell",
+      "mint": "Fd4MhsTwKehzyuR1GizKe9dcDp7qbzYT3SL5R7upump",
+      "symbol": "SPHC",
+      "price": 0.00003411435165306183,
+      "qty": 3090211.141852,
+      "value": 105.42055,
+      "fee": 0.35,
+      "marketCap": 34114.35165306183
+    },
+    {
+      "id": "1761988382543-29f809c7ae6c2",
+      "ts": 1761988382543,
+      "side": "buy",
+      "mint": "Fd4MhsTwKehzyuR1GizKe9dcDp7qbzYT3SL5R7upump",
+      "symbol": "SPHC",
+      "price": 0.000032360248348618616,
+      "qty": 3090211.14185203,
+      "value": 100,
+      "fee": 0.35,
+      "marketCap": 32360.248348618614
+    },
+    {
+      "id": "1761819765604-a7bee9a129906",
+      "ts": 1761819765604,
+      "side": "sell",
+      "mint": "E2Ffn6nZo1BmYifQSuhMZ47nbVnNubUCBSSqssr6pump",
+      "symbol": "KitKat",
+      "price": 0.00007139555519009705,
+      "qty": 2290665.625483,
+      "value": 163.69827,
+      "fee": 0.35,
+      "marketCap": 71495.55519009705
+    },
+    {
+      "id": "1761819293255-e9908fd092f0c",
+      "ts": 1761819293255,
+      "side": "buy",
+      "mint": "E2Ffn6nZo1BmYifQSuhMZ47nbVnNubUCBSSqssr6pump",
+      "symbol": "KitKat",
+      "price": 0.00004365543311408897,
+      "qty": 2290665.6254826365,
+      "value": 100,
+      "fee": 0.35,
+      "marketCap": 43655.43311408897
+    },
+    {
+      "id": "1761811499857-36279211a3ff9",
+      "ts": 1761811499857,
+      "side": "sell",
+      "mint": "DKcFn2rsH1yq88heo7LEmc87nzfNTH86YFCBjsuQpump",
+      "symbol": "Poly",
+      "price": 0.00007271799215605304,
+      "qty": 2205918.783657,
+      "value": 160.409985,
+      "fee": 0.35,
+      "marketCap": 72717.98779396247
+    },
+    {
+      "id": "1761810844376-37fe654540b11",
+      "ts": 1761810844376,
+      "side": "buy",
+      "mint": "DKcFn2rsH1yq88heo7LEmc87nzfNTH86YFCBjsuQpump",
+      "symbol": "Poly",
+      "price": 0.000045332584654015426,
+      "qty": 2205918.7836566977,
+      "value": 100,
+      "fee": 0.35,
+      "marketCap": 45332.58465401542
+    },
+    {
+      "id": "1761212577111-b3b8abedd6601",
+      "ts": 1761212577111,
+      "side": "sell",
+      "mint": "68VCsRoEQUpghmQic7vNKmA855H2qKA2tKRvedGBpump",
+      "symbol": "RUGEORA",
+      "price": 0.00003093961296784285,
+      "qty": 2236584.812615,
+      "value": 75.405,
+      "fee": 0.35,
+      "marketCap": 30991.78
+    },
+    {
+      "id": "1761212278433-20959fb3376cd",
+      "ts": 1761212278434,
+      "side": "buy",
+      "mint": "68VCsRoEQUpghmQic7vNKmA855H2qKA2tKRvedGBpump",
+      "symbol": "RUGEORA",
+      "price": 0.000022476232386302295,
+      "qty": 2236584.8126145946,
+      "value": 50.27,
+      "fee": 0.35,
+      "marketCap": 20476.232386302294
+    },
+    {
+      "id": "1761210176732-8723a7db2fbb5",
+      "ts": 1761210176732,
+      "side": "sell",
+      "mint": "J4xb3dPUyVhtb652UHSkQbAuCXXKH9WWgxG3hdoapump",
+      "symbol": "BATONKID",
+      "price": 0.000034011869838875445,
+      "qty": 2000332.886273,
+      "value": 68.035062,
+      "fee": 0.35,
+      "marketCap": 34011.65129834178
+    },
+    {
+      "id": "1761210032877-7e2df2a137d01",
+      "ts": 1761210032877,
+      "side": "buy",
+      "mint": "J4xb3dPUyVhtb652UHSkQbAuCXXKH9WWgxG3hdoapump",
+      "symbol": "BATONKID",
+      "price": 0.000022286290599889465,
+      "qty": 2000332.8862731918,
+      "value": 44.58,
+      "fee": 0.35,
+      "marketCap": 22286.14740112197
+    },
+    {
+      "id": "1761046733799-87b2d383cfef7",
+      "ts": 1761046733799,
+      "side": "sell",
+      "mint": "BwaMiwDaS3Y7B63PjGEwvDmoMhU16mh9vmZj7npBpump",
+      "symbol": "DID",
+      "price": 0.000028827148474375827,
+      "qty": 1548451.479909,
+      "value": 44.637441,
+      "fee": 0.35,
+      "marketCap": 28827.139806483305
+    },
+    {
+      "id": "1761046596470-0c083295b8bb",
+      "ts": 1761046596470,
+      "side": "buy",
+      "mint": "BwaMiwDaS3Y7B63PjGEwvDmoMhU16mh9vmZj7npBpump",
+      "symbol": "DID",
+      "price": 0.00002169263966990306,
+      "qty": 1548451.4799092733,
+      "value": 33.59,
+      "fee": 0.35,
+      "marketCap": 21692.63314725066
+    },
+    {
+      "id": "1760864570762-c7667b2162725",
+      "ts": 1760864570762,
+      "side": "sell",
+      "mint": "4Zpk9w5ysL6DaFoBVbWPSwxVqKqKrEpWM1QHSCiFpump",
+      "name": "X Handles Marketplace",
+      "symbol": "HANDLES",
+      "price": 0.00006433470451692879,
+      "qty": 1617957.119895,
+      "value": 104.090793,
+      "fee": 0.35,
+      "marketCap": 64334.70451692879
+    },
+    {
+      "id": "1760863317003-f1c79616bdadf",
+      "ts": 1760863317003,
+      "side": "buy",
+      "mint": "4Zpk9w5ysL6DaFoBVbWPSwxVqKqKrEpWM1QHSCiFpump",
+      "name": "X Handles Marketplace",
+      "symbol": "HANDLES",
+      "price": 0.00003990835060214734,
+      "qty": 1617957.1198947441,
+      "value": 64.57,
+      "fee": 0.35,
+      "marketCap": 39908.350602147344
+    },
+    {
+      "id": "1760782331922-640f0097e7ac1",
+      "ts": 1760782331922,
+      "side": "sell",
+      "mint": "4NfGMsXQGu6fWNaiyRGfjGz3KobFpUYHCYV5TXLppump",
+      "name": "KAREN",
+      "symbol": "KAREN",
+      "price": 0.000016852641797660807,
+      "qty": 1330584.911709,
+      "value": 22.423871,
+      "fee": 0.35,
+      "marketCap": 16852.641797594053
+    },
+    {
+      "id": "1760782105023-e115ec92b0499",
+      "ts": 1760782105023,
+      "side": "buy",
+      "mint": "4NfGMsXQGu6fWNaiyRGfjGz3KobFpUYHCYV5TXLppump",
+      "name": "KAREN",
+      "symbol": "KAREN",
+      "price": 0.00002691297615423113,
+      "qty": 1330584.9117088497,
+      "value": 35.81,
+      "fee": 0.35,
+      "marketCap": 26912.976154124528
+    },
     {
       "id": "1760622030677-11220d77f9795",
       "ts": 1760622030677,
@@ -142,6 +338,10 @@
       "amount": 65
     }
   ],
-  "lastScannedMint": "CZTpuQ7ZgBasWGT5TCD5mBgXAQdmHfMvKspeK2VHpump",
-  "todos": {}
+  "lastScannedMint": "CZzLJcr9nKgisaqsfjq3AXj3rGV5Bb2szmRWumqPpump",
+  "todos": {},
+  "settings": {
+    "primarySource": "rugcheck",
+    "fluxbeamOverrideText": ""
+  }
 }
